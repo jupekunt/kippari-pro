@@ -209,6 +209,21 @@ function rakennaVerkko(linjat) {
   for (const [a, b, l] of ulko) kaari(a, b, l);
   return { lat, lon, naapurit, seg, linjat, KX, KY };
 }
+// Yhdistää alueittain ladatut väylätiedot yhdeksi aineistoksi. osat = [{alue, haettu, nimet, linjat, merkit, rajoitukset}].
+// Väylien nimet numeroidaan uudelleen yhteiseen listaan. haettu = vanhimman osan hakuaika, osat = {alue: {haettu, linjat, merkit, rajoitukset (lukumäärät)}}.
+function yhdistaVaylat(osat) {
+  const nimet = [], ni = new Map(), linjat = [], merkit = [], rajoitukset = [], tiedot = {}, nahty = new Set(); let haettu = Infinity;
+  // Alueiden rajan ylittävä kohde tulee molempien alueiden mukana: sama kohde otetaan vain kerran.
+  const uusiKohde = k => { if (nahty.has(k)) return false; nahty.add(k); return true; };
+  for (const o of osat) {
+    const uusi = o.nimet.map(nm => { let j = ni.get(nm); if (j === undefined) { j = nimet.length; nimet.push(nm); ni.set(nm, j); } return j; });
+    for (const l of o.linjat) { let sum = 0; for (const x of l.p) sum += x; if (uusiKohde('l' + l.p.length + ':' + l.p[0] + ',' + l.p[1] + ':' + sum.toFixed(5))) linjat.push({ p: l.p, s: l.s, j: uusi[l.j] }); }
+    for (const m of o.merkit) if (uusiKohde('m' + m[0] + ',' + m[1] + ',' + m[3])) merkit.push(m);
+    for (const r of o.rajoitukset || []) if (uusiKohde('r' + (r.n || '') + ':' + (r.b || []).join(',') + ':' + (r.k || ''))) rajoitukset.push(r);
+    haettu = Math.min(haettu, o.haettu); tiedot[o.alue] = { haettu: o.haettu, linjat: o.linjat.length, merkit: o.merkit.length, rajoitukset: (o.rajoitukset || []).length };
+  }
+  return { haettu, nimet, linjat, merkit, rajoitukset, osat: tiedot };
+}
 // Lähin kohta väyläverkolla (vain linjat, joiden syväys riittää).
 function lahinVayla(v, la, lo, syvays) {
   const px = lo * v.KX, py = la * v.KY; let paras = null;
@@ -366,4 +381,4 @@ function pisteAlueessa(lon, lat, a) { if (lon < a.b[0] || lon > a.b[2] || lat < 
 // Voimassa olevat rajoitukset annetussa kohdassa, tiukin nopeusrajoitus ensin.
 function rajoitusKohdassa(lista, lat, lon, nyt) { return (lista || []).filter(a => (!a.e || a.e > nyt) && pisteAlueessa(lon, lat, a)).sort((a, b) => (a.k || 1e9) - (b.k || 1e9)); }
 
-if (typeof module !== 'undefined') module.exports = { suuntima, kulmaEro, reittiMitat, reittiKohta, yksinkertaista, rajoituksetMuunna, pisteAlueessa, rajoitusKohdassa, satamatMuunna, ylosVektori, kallistus, MERKKILAJIT, rakennaVerkko, lahinVayla, reitita, merkitReitilla, MPK, SOLMU, etaisyys, Tallennin, lahinPaikka, kulutus, huoltoTila, ilmansuunta, saaYhteenveto, gpx };
+if (typeof module !== 'undefined') module.exports = { yhdistaVaylat, suuntima, kulmaEro, reittiMitat, reittiKohta, yksinkertaista, rajoituksetMuunna, pisteAlueessa, rajoitusKohdassa, satamatMuunna, ylosVektori, kallistus, MERKKILAJIT, rakennaVerkko, lahinVayla, reitita, merkitReitilla, MPK, SOLMU, etaisyys, Tallennin, lahinPaikka, kulutus, huoltoTila, ilmansuunta, saaYhteenveto, gpx };
