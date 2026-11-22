@@ -98,30 +98,43 @@ function seurantaPois() {
   watchId = null; T.as.seuranta = false; talletaT(); naytto(false);
 }
 // Sijaintiluvan tila Lisää-sivulle. Selaimen lupatieto (Permissions API) ei ole kaikissa selaimissa, jolloin tila päätellään viimeisestä yrityksestä.
+// iPad ja iPhone eivät näytä lupakyselyä eivätkä aina edes vastaa pyyntöön, jos sijaintipalvelut ovat pois tai Safarin sijaintilupa on estetty: se tunnistetaan odotusajasta (gps.eiVastaa).
+const onIos = () => /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const IOS_OHJE = 'Tee iPadissa tai iPhonessa näin: 1) Asetukset → Tietosuoja ja suojaus → Sijaintipalvelut: kytke Sijaintipalvelut päälle. 2) Samassa luettelossa Safari-sivustot: valitse "Kysy seuraavalla kerralla tai kun jaan" tai "Appia käytettäessä" ja kytke Tarkka sijainti päälle. 3) Asetukset → Apit → Safari → Sijainti: valitse "Kysy" tai "Salli". 4) Sulje sovellus kokonaan, avaa se uudelleen ja paina nappia. Jos kysely ei vieläkään tule Koti-valikon kuvakkeesta avattuna, avaa sama osoite Safarissa ja paina nappia siellä.';
 async function paivitaGpsTila() {
   if (!$('#gpsTila')) return;
-  let lupa = gps.lupa || '';
-  try { if (navigator.permissions && navigator.permissions.query) lupa = (await navigator.permissions.query({ name: 'geolocation' })).state || lupa; } catch (x) { }
+  let lupa = gps.lupa || '', selain = 'ei tietoa';
+  try { if (navigator.permissions && navigator.permissions.query) { selain = (await navigator.permissions.query({ name: 'geolocation' })).state || selain; if (selain !== 'ei tietoa') lupa = selain; } } catch (x) { }
   const el = $('#gpsTila'); if (!el) return;
-  const f = gps.viime, paalla = watchId != null;
+  const f = gps.viime, paalla = watchId != null, ios = onIos();
   el.textContent = !window.isSecureContext ? 'Sijainti toimii vain https-osoitteessa. Avaa sovellus sen julkaistusta osoitteesta.'
     : !navigator.geolocation ? 'Tämä selain ei tue paikannusta.'
-      : lupa === 'denied' ? 'Sijaintilupa on estetty. Selain ei kysy sitä uudelleen itsestään: salli sijainti puhelimen asetuksista alla olevan ohjeen mukaan.'
-        : lupa === 'granted' ? 'Sijaintilupa on annettu. ' + (paalla ? (f ? 'GPS on päällä, tarkkuus ±' + Math.round(f.acc || 0) + ' m.' : 'GPS on päällä, haetaan sijaintia…') : 'GPS ei ole päällä – käynnistä se napista.')
-          : paalla ? 'GPS on käynnistetty' + (f ? ', tarkkuus ±' + Math.round(f.acc || 0) + ' m.' : ', haetaan sijaintia…') + (gps.virhe ? ' ' + gps.virhe : '')
-            : 'Sijaintilupaa ei ole vielä annettu. Paina nappia, niin puhelin kysyy luvan.';
+      : gps.pyynto ? 'Pyydetään sijaintia… Vastaa laitteen kysymykseen "Salli".'
+        : gps.eiVastaa && !f ? 'Laite ei näyttänyt lupakyselyä eikä vastannut sijaintipyyntöön. ' + (ios ? 'Näin käy, kun sijaintipalvelut ovat pois päältä tai Safarin sijaintilupa on estetty. ' + IOS_OHJE : 'Tarkista, että sijainti on päällä laitteen asetuksista ja sallittu tälle sivulle, ja paina nappia uudelleen.')
+          : lupa === 'denied' ? 'Sijaintilupa on estetty. Selain ei kysy sitä uudelleen itsestään: salli sijainti laitteen asetuksista. ' + (ios ? IOS_OHJE : 'Ohje on napin alla.')
+            : lupa === 'granted' ? 'Sijaintilupa on annettu. ' + (paalla ? (f ? 'GPS on päällä, tarkkuus ±' + Math.round(f.acc || 0) + ' m.' : 'GPS on päällä, haetaan sijaintia…') : 'GPS ei ole päällä – käynnistä se napista.')
+              : paalla ? 'GPS on käynnistetty' + (f ? ', tarkkuus ±' + Math.round(f.acc || 0) + ' m.' : ', haetaan sijaintia…') + (gps.virhe ? ' ' + gps.virhe : '')
+                : 'Sijaintilupaa ei ole vielä annettu. Paina nappia, niin laite kysyy luvan.';
+  // tekniset tiedot vianselvitystä varten
+  let t = $('#gpsTiedot'); if (!t) { t = document.createElement('div'); t.className = 'pieni'; t.id = 'gpsTiedot'; el.after(t); }
+  const koti = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  t.textContent = 'Tekniset tiedot: suojattu yhteys ' + (window.isSecureContext ? 'kyllä' : 'ei') + ' · selaimen lupatila ' + ({ granted: 'sallittu', denied: 'estetty', prompt: 'kysytään' }[selain] || selain) + ' · avattu Koti-valikosta ' + (koti ? 'kyllä' : 'ei') + ' · laite ' + (ios ? 'iPad tai iPhone' : 'muu') + (gps.viimeVirhe ? ' · viimeisin vastaus: ' + gps.viimeVirhe : '');
 }
 // Pyytää sijaintiluvan suoraan napin painalluksesta (selain näyttää lupakyselyn vain käyttäjän toiminnasta) ja käynnistää seurannan.
+// Jos laite ei vastaa 10 sekunnissa mitään, näytetään ohje: iOS ei kutsu virhekäsittelijää, kun kysely jää näyttämättä.
 function gpsLupa() {
   if (!window.isSecureContext || !navigator.geolocation) { paivitaGpsTila(); ilmoita(!window.isSecureContext ? 'Sijainti toimii vain https-osoitteessa.' : 'Tämä selain ei tue paikannusta.'); return; }
-  if ($('#gpsTila')) $('#gpsTila').textContent = 'Pyydetään sijaintia… Vastaa puhelimen kysymykseen "Salli".';
+  const pyynto = gps.pyynto = Date.now(); gps.eiVastaa = false; gps.viimeVirhe = ''; paivitaGpsTila();
+  const vastasi = () => { if (gps.pyynto === pyynto) gps.pyynto = 0; gps.eiVastaa = false; };
+  setTimeout(() => { if (gps.pyynto !== pyynto) return; gps.pyynto = 0; gps.eiVastaa = true; ilmoita('Laite ei näyttänyt lupakyselyä. Katso ohje Sijainti-kortista.'); paivitaGpsTila(); }, 10000);
   navigator.geolocation.getCurrentPosition(p => {
-    gps.lupa = 'granted'; seurantaPaalle(true);
+    vastasi(); gps.lupa = 'granted'; seurantaPaalle(true);
     let t = p.timestamp; if (!t || Math.abs(t - Date.now()) > 864e5) t = Date.now();
     fix({ t, lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy, sog: p.coords.speed, cog: p.coords.heading });
     ilmoita('Sijaintilupa on kunnossa ja GPS on päällä.'); paivitaGpsTila();
   }, err => {
-    if (err.code === 1) { gps.lupa = 'denied'; gps.virhe = 'Sijaintilupa puuttuu.'; ilmoita('Sijaintilupa on estetty. Salli sijainti puhelimen asetuksista – ohje on napin alla.'); }
+    vastasi(); gps.viimeVirhe = 'virhe ' + err.code + (err.message ? ' (' + String(err.message).slice(0, 60) + ')' : '');
+    if (err.code === 1) { gps.lupa = 'denied'; gps.virhe = 'Sijaintilupa puuttuu.'; ilmoita('Sijaintilupa on estetty. Salli sijainti laitteen asetuksista – ohje on Sijainti-kortissa.'); }
     else { gps.lupa = 'granted'; seurantaPaalle(true); ilmoita('Lupa on kunnossa, mutta sijaintia ei saatu juuri nyt. Kokeile ulkona tai ikkunan vieressä.'); }      // lupa on, signaali puuttuu: seuranta jää yrittämään
     paivitaGpsTila();
   }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
