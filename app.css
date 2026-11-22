@@ -149,3 +149,6 @@ dialog input[type=checkbox]{width:22px;height:22px;flex:none;accent-color:var(--
 #ilmoitus.on{opacity:.96}
 
 .kreitti button:disabled{opacity:.4;cursor:default}
+
+/* kaikki valintaruudut pitävät kokonsa, vaikka viereinen teksti rivittyisi */
+input[type=checkbox],input[type=radio]{flex:none;min-width:22px;min-height:22px}
