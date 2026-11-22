@@ -608,7 +608,7 @@ function liveKartta() {
   }
   const ed = lk && !lk.tyhja ? lk : null;
   if (ed && (Date.now() - ed.aika < 2000 || etaisyys(ed.lat, ed.lon, f.lat, f.lon) < 10)) return;
-  if (f.cog != null && !isNaN(f.cog) && f.sog > 0.5) kulku = f.cog;
+  if (f.cog != null && !isNaN(f.cog) && f.cog >= 0 && f.sog > 0.5) kulku = f.cog;
   else if (ed) kulku = (Math.atan2(Math.sin((f.lon - ed.lon) * RAD) * Math.cos(f.lat * RAD), Math.cos(ed.lat * RAD) * Math.sin(f.lat * RAD) - Math.sin(ed.lat * RAD) * Math.cos(f.lat * RAD) * Math.cos((f.lon - ed.lon) * RAD)) / RAD + 360) % 360;
   lk = { aika: Date.now(), lat: f.lat, lon: f.lon }; T.sij = [f.lat, f.lon];
   if (lv.alussa) { lv.z = 12; lv.alussa = false; }
@@ -782,6 +782,7 @@ const A = {
       [["tuuli","Tuuli ja sää","Tuulinuolet, puuskat, lämpötila ja aallonkorkeus kartalla; ennuste 24 tuntia eteenpäin."],["ais","Muut alukset (AIS)","Lähialueen alukset kartalla. Päivittyy noin minuutin välein."],["satamat","Satamat ja polttoaineasemat","Venesatamat palvelutietoineen. Haetaan kerran ja jää talteen."]].map(k => '<label class="cb"><input type="checkbox" data-lisa="' + k[0] + '"' + (T.as[k[0]] ? ' checked' : '') + '>' + k[1] + '</label>').join('') +
       '<label class="cb"><input type="checkbox" id="kKall"' + (T.as.kallistus ? ' checked' : '') + '>Näytä kallistusmittari kartalla</label>' +
       '<label class="cb"><input type="checkbox" id="kSuuntaviiva"' + (T.as.suuntaviiva ? ' checked' : '') + '>Veneen suuntaviiva</label>' +
+      '<div class="pieni" id="kSuuntaTila">' + (!paikkaTuore() ? 'Suuntaviiva näkyy, kun GPS on päällä ja vene liikkuu.' : kulku == null ? 'Kulkusuuntaa ei vielä tiedetä: viiva ilmestyy, kun vene on liikkunut noin 10 metriä.' : 'Kulkusuunta nyt ' + Math.round(kulku) + '° ' + ilmansuunta(kulku) + '.') + '</div>' +
       '<label class="cb"><input type="checkbox" id="kSeur"' + (T.as.reittiSeuranta ? ' checked' : '') + '>Seuraa reittiä ajon aikana</label>' +
       '<label>Varoita, kun vene on sivussa reitistä<select id="kSivu">' + [[100, 'yli 100 m'], [200, 'yli 200 m'], [500, 'yli 500 m'], [0, 'ei varoitusta']].map(x => '<option value="' + x[0] + '"' + (x[0] === T.as.reittiSivu ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
       '<div class="pieni">Seuranta näyttää kartalla olevasta reitistä jäljellä olevan matkan, arvioidun tuloajan ja seuraavan käännöksen. Se tarvitsee sijainnin, eli seurannan pitää olla päällä Matka-välilehdellä.</div>' +
@@ -1528,12 +1529,32 @@ function kallKuuntele(ev) {
   if (tal.tila === 'matka' && Math.abs(kall.heel) > (tal.m.kall || 0)) tal.m.kall = Math.abs(kall.heel);
   paivitaKall();
 }
-async function kallPaalle() {
+// hiljaa = ei ilmoituksia (automaattinen käynnistys sovelluksen avautuessa)
+async function kallPaalle(hiljaa) {
+  const sano = t => { if (!hiljaa) ilmoita(t); };
   try {
-    if (typeof DeviceOrientationEvent === 'undefined') { ilmoita('Tässä laitteessa ei ole asentoanturia.'); return false; }
-    if (DeviceOrientationEvent.requestPermission) { const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') { ilmoita('Lupaa liikeantureihin ei annettu.'); return false; } }
+    if (typeof DeviceOrientationEvent === 'undefined') { sano('Tässä laitteessa ei ole asentoanturia.'); return false; }
+    if (DeviceOrientationEvent.requestPermission) { const r = await DeviceOrientationEvent.requestPermission(); if (r !== 'granted') { sano('Lupaa liikeantureihin ei annettu.'); return false; } }
     window.removeEventListener('deviceorientation', kallKuuntele); window.addEventListener('deviceorientation', kallKuuntele); kall.paalla = true; return true;
-  } catch (x) { ilmoita('Asentoanturia ei saatu käyttöön.'); return false; }
+  } catch (x) { sano('Asentoanturia ei saatu käyttöön.'); return false; }
+}
+// Kallistusmittari käyntiin sovelluksen avautuessa, kun se on asetuksissa päällä.
+// iPhone ja iPad: anturilupa pitää pyytää jokaisella käynnistyskerralla, ja laite hyväksyy pyynnön vain napautuksesta (click tai touchend –
+// pelkkä kosketuksen alku ei kelpaa). Siksi lupa pyydetään ensimmäisestä napautuksesta ja yritetään tarvittaessa uudelleen seuraavista.
+function kallAutomaatti() {
+  if (typeof DeviceOrientationEvent === 'undefined') return;
+  if (!DeviceOrientationEvent.requestPermission) { kallPaalle(true); return; }
+  let yrityksia = 0;
+  const lopeta = () => { document.removeEventListener('click', yrita, true); document.removeEventListener('touchend', yrita, true); };
+  const yrita = async () => {
+    if (kall.paalla || !T.as.kallistus) { lopeta(); return; }
+    if (kall.pyytaa) return; kall.pyytaa = true;
+    const ok = await kallPaalle(true); kall.pyytaa = false;
+    if (ok) lopeta();
+    else if (++yrityksia >= 4) { lopeta(); ilmoita('Kallistusmittari ei saanut lupaa liikeantureihin. Salli se kysyttäessä tai kytke mittari uudelleen kartan valikosta.'); }
+    paivitaKall(true);
+  };
+  document.addEventListener('click', yrita, true); document.addEventListener('touchend', yrita, true);
 }
 function kallPois() { window.removeEventListener('deviceorientation', kallKuuntele); kall.paalla = false; kall.heel = kall.trim = null; }
 const kallTeksti = () => { const h = Math.round(kall.heel); return [Math.abs(h) + '°', h > 0 ? 'oikealle' : h < 0 ? 'vasemmalle' : 'suorassa']; };
@@ -1544,7 +1565,7 @@ function paivitaKall(pakko) {
   const tuore = kall.heel != null && Date.now() - kall.aika < 5000, r = $('#kKalRivi');
   if (r) {
     r.hidden = !T.as.kallistus;
-    if (T.as.kallistus) { const t = tuore ? kallTeksti() : ['–', 'ei anturitietoa']; $('#kKal').textContent = t[0]; $('#kKalS').textContent = t[1]; $('#kKalViiva').style.transform = 'rotate(' + (tuore ? rajaa(kall.heel, -60, 60) : 0) + 'deg)'; }
+    if (T.as.kallistus) { const t = tuore ? kallTeksti() : ['–', kall.paalla ? 'ei anturitietoa' : 'napauta näyttöä']; $('#kKal').textContent = t[0]; $('#kKalS').textContent = t[1]; $('#kKalViiva').style.transform = 'rotate(' + (tuore ? rajaa(kall.heel, -60, 60) : 0) + 'deg)'; }
   }
   const s = $('#kallNyt');
   if (s) s.textContent = !T.as.kallistus ? '' : tuore ? 'Nyt: kallistus ' + kallTeksti().join(' ') + ', keula ' + (Math.round(kall.trim) > 0 ? '+' : '') + Math.round(kall.trim) + '°' : 'Anturilta ei tule tietoa. Tietokoneessa anturia ei ole; puhelimessa sivun pitää olla https-osoitteessa.';
@@ -1605,7 +1626,7 @@ async function alku() {
   vaylatMuistiin().then(v => { if (v && kLive) kLive.pyyda(); }).catch(() => { });
   if (T.as.seuranta && !/[?&]testi/.test(location.search)) seurantaPaalle(true);
   // Kallistusmittari käyntiin. iPhonessa anturilupa vaatii kosketuksen, joten siellä odotetaan ensimmäistä napautusta.
-  if (T.as.kallistus) { if (typeof DeviceOrientationEvent !== 'undefined' && DeviceOrientationEvent.requestPermission) document.addEventListener('pointerdown', () => kallPaalle(), { once: true }); else kallPaalle(); }
+  if (T.as.kallistus) kallAutomaatti();
   piirra(); paivitaSaat();
   if ('serviceWorker' in navigator && !/[?&]testi/.test(location.search)) navigator.serviceWorker.register('sw.js').catch(() => { });
   window.__valmis = true;
