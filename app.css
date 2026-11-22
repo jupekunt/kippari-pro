@@ -79,7 +79,11 @@ main.taysi{padding:0;max-width:none}
 #kNopeus.yli{color:#d0121c}
 .kkal{display:flex;align-items:center;border-top:1px solid #d9e1e7;padding-top:7px;margin-top:5px}
 .kkal[hidden]{display:none}
-.kkal i{width:26px;height:4px;border-radius:2px;background:#0b7a8f;margin-right:8px;transition:transform .2s}
+/* kallistus: vene takaapäin kuvattuna kallistuu, vedenpinta pysyy vaakasuorassa */
+.kvene{position:relative;width:40px;height:34px;margin-right:8px;flex:none;display:block}
+.kvene::after{content:"";position:absolute;left:-2px;right:-2px;top:25px;height:2px;border-radius:1px;background:#5aa9c4;opacity:.9}
+.kkal i{display:block;width:40px;height:34px;transform-origin:50% 76%;transition:transform .2s}
+.kkal i svg{display:block;width:40px;height:34px}
 .kkal b{font-size:22px}
 .kkal span{font-size:13px}
 .ktuuli{position:absolute;left:128px;right:64px;top:10px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;border:0;border-radius:14px;padding:7px 12px;background:rgba(255,255,255,.93);color:#12222f;box-shadow:0 1px 6px rgba(0,0,0,.3);cursor:pointer;text-align:left}

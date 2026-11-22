@@ -23,7 +23,7 @@ const KULULAJIT = ['Satama ja laituri', 'Huolto ja varaosat', 'Varusteet', 'Vaku
 function uusiTila() {
   return { vene: { nimi: '', tunnit0: 0, mpk0: 0, syvays: null, nopeus: 10 }, koti: null, reitit: [], paikat: [], kalapaikat: [], tankkaukset: [], kulut: [],
     huollot: HUOLLOT.map((h, i) => ({ id: 'h' + i, nimi: h[0], valiH: h[1], valiKk: h[2], tehtyPvm: null, tehtyH: null })),
-    as: { auto: true, pysMin: 15, seuranta: false, kartta: 'meri', yksikko: 'kn', kallistus: false, kallNolla: null, rajoitus: true, reittiSeuranta: true, reittiSivu: 200, suuntaviiva: true, syvyys: false, kalapaikat: true, tuuli: false, ais: false, satamat: false }, saajono: [], kopio: null };
+    as: { auto: true, pysMin: 15, seuranta: false, kartta: 'meri', yksikko: 'kn', kallistus: false, kallNolla: null, rajoitus: true, reittiSeuranta: true, reittiSivu: 200, suuntaviiva: true, syvyys: false, kalapaikat: true, tuuli: false, ais: false, satamat: false, luiskat: false, saunat: true }, saajono: [], kopio: null };
 }
 
 // ---------- tallennus ----------
@@ -232,7 +232,7 @@ function nMatka() {
 // Päänäkymä: koko ruudun kartta. Päällä nopeus ja kulkusuunta, kartan napit ja tallennuksen tila.
 function nKartta() {
   return '<div class="kokok' + (reitti || omaR ? ' onreitti' : '') + '"><canvas class="kartta taysi" id="lKartta"></canvas>' +
-    '<div class="kyla"><div class="kmittari"><div class="knop"><b id="kNopeus">–</b><span>' + NY() + '</span></div><div class="ksuu"><b id="kSuunta">–</b><span id="kIlmans"></span></div><div class="kraj" id="kRaja" data-a="rajoitusTiedot" hidden><i id="kRajaLuku"></i><span id="kRajaS"></span></div><div class="kkal" id="kKalRivi" hidden><i id="kKalViiva"></i><b id="kKal">–</b><span id="kKalS"></span></div></div><button class="ktuuli" id="kTuuli" data-a="tuuliAika" hidden title="Vaihda ennusteen ajankohtaa"><b></b><span></span></button></div>' +
+    '<div class="kyla"><div class="kmittari"><div class="knop"><b id="kNopeus">–</b><span>' + NY() + '</span></div><div class="ksuu"><b id="kSuunta">–</b><span id="kIlmans"></span></div><div class="kraj" id="kRaja" data-a="rajoitusTiedot" hidden><i id="kRajaLuku"></i><span id="kRajaS"></span></div><div class="kkal" id="kKalRivi" hidden><em class="kvene"><i id="kKalViiva"><svg viewBox="0 0 40 34" aria-hidden="true"><path d="M20 2v7" stroke="#12222f" stroke-width="1.6" stroke-linecap="round"/><path d="M12.5 17l2-8h11l2 8z" fill="#cfe6ec" stroke="#0b7a8f" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 17h32l-3.5 8.5q-12.5 5-25 0z" fill="#0b7a8f" stroke="#075565" stroke-width="1.2" stroke-linejoin="round"/><rect x="18" y="24" width="4" height="7" rx="1.2" fill="#12222f"/></svg></i></em><b id="kKal">–</b><span id="kKalS"></span></div></div><button class="ktuuli" id="kTuuli" data-a="tuuliAika" hidden title="Vaihda ennusteen ajankohtaa"><b></b><span></span></button></div>' +
     '<div class="knapit"><button data-a="keskita" id="lKarttaK" aria-label="Keskitä veneeseen" title="Keskitä veneeseen">' + KESKITA + '</button>' +
     '<button data-a="zoom" data-id="1" aria-label="Lähennä">+</button><button data-a="zoom" data-id="-1" aria-label="Loitonna">−</button>' +
     '<button data-a="reitti" aria-label="Reittisuunnittelu" title="Reittisuunnittelu"><svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H14a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h5.5"/></svg></button>' +
@@ -336,7 +336,7 @@ function nLisaa() {
     '<div class="pieni" id="rajTila"></div><div class="pieni">Kun ajat rajoitusalueella, kartan mittariin tulee rajoitusmerkki. Ylinopeudesta puhelin värisee ja piippaa, ja nopeuslukema muuttuu punaiseksi. Rajoitukset ovat kilometreinä tunnissa. Vesillä olevat merkit ratkaisevat: aineistossa voi olla puutteita, ja osa rajoituksista ei koske yleistä kulkuväylää.</div>' +
     '<div class="napit"><button class="nappi pien" data-a="rajoitusLataa">Lataa tai päivitä rajoitusalueet</button></div></div>' +
     '<div class="kortti"><h2>Kartan lisätiedot</h2><div class="pieni">Nämä haetaan verkosta, joten ne näkyvät vain, kun yhteys on käytössä.</div>' +
-    [["tuuli","Tuuli ja sää","Tuulinuolet, puuskat, lämpötila ja aallonkorkeus kartalla; ennuste 24 tuntia eteenpäin."],["ais","Muut alukset (AIS)","Lähialueen alukset kartalla. Päivittyy noin minuutin välein."],["satamat","Satamat ja polttoaineasemat","Suomenlahden, Saaristomeren ja Selkämeren venesatamat palvelutietoineen. Tiedot tulevat sovelluksen mukana, joten ne näkyvät myös ilman verkkoa."]].map(k => '<label class="kytkin"><span>' + k[1] + '<br><span class="pieni">' + k[2] + '</span></span><input type="checkbox" data-c="' + k[0] + '"' + (T.as[k[0]] ? ' checked' : '') + '></label>').join('') +
+    [["tuuli","Tuuli ja sää","Tuulinuolet, puuskat, lämpötila ja aallonkorkeus kartalla; ennuste 24 tuntia eteenpäin."],["ais","Muut alukset (AIS)","Lähialueen alukset kartalla. Päivittyy noin minuutin välein."],["satamat","Satamat ja polttoaineasemat","Suomenlahden, Saaristomeren ja Selkämeren venesatamat palvelutietoineen. Tiedot tulevat sovelluksen mukana, joten ne näkyvät myös ilman verkkoa."],["luiskat","Veneenlaskuluiskat","Paikat, joissa veneen voi laskea trailerilta veteen. Tiedot tulevat sovelluksen mukana ja näkyvät, kun kartta on lähennetty."],["saunat","Yleiset saunat saarissa","Helsingin ja Espoon edustan saarten saunat, joihin kuka tahansa pääsee vuorolle tai varaamalla. Tiedot tulevat sovelluksen mukana."]].map(k => '<label class="kytkin"><span>' + k[1] + '<br><span class="pieni">' + k[2] + '</span></span><input type="checkbox" data-c="' + k[0] + '"' + (T.as[k[0]] ? ' checked' : '') + '></label>').join('') +
     '<div class="pieni">Lähteet: sää Open-Meteo (säämallin ennuste, ei mittaus), AIS Fintraffic / Digitraffic, satamat OpenStreetMap. Haettaessa palvelut näkevät, mitä kartan aluetta katsot.</div>' +
     '<div class="pieni" id="satamaTila">' + (st => st ? 'Satamatiedot: ' + st.lista.length + ' kohdetta, päivätty ' + pvm(st.haettu) + '.' : '')(lisa.satamat || (typeof SATAMAT_PAKETTI !== 'undefined' ? SATAMAT_PAKETTI : null)) + '</div>' +
     '<div class="napit"><button class="nappi pien" data-a="satamatPaivita">Päivitä satamatiedot verkosta</button></div></div>' +
@@ -786,7 +786,7 @@ const A = {
   kartat() {
     const d = $('#dlg');
     d.innerHTML = '<form method="dialog"><h3>Kartta</h3><label>Karttapohja<select id="kPohja">' + ['meri', 'maa'].map(k => '<option value="' + k + '"' + (KARTAT[k] === kartta() ? ' selected' : '') + '>' + KARTAT[k].nimi + '</option>').join('') + '</select></label>' +
-      [["tuuli","Tuuli ja sää","Tuulinuolet, puuskat, lämpötila ja aallonkorkeus kartalla; ennuste 24 tuntia eteenpäin."],["ais","Muut alukset (AIS)","Lähialueen alukset kartalla. Päivittyy noin minuutin välein."],["satamat","Satamat ja polttoaineasemat","Venesatamat palvelutietoineen. Haetaan kerran ja jää talteen."]].map(k => '<label class="cb"><input type="checkbox" data-lisa="' + k[0] + '"' + (T.as[k[0]] ? ' checked' : '') + '>' + k[1] + '</label>').join('') +
+      [["tuuli","Tuuli ja sää","Tuulinuolet, puuskat, lämpötila ja aallonkorkeus kartalla; ennuste 24 tuntia eteenpäin."],["ais","Muut alukset (AIS)","Lähialueen alukset kartalla. Päivittyy noin minuutin välein."],["satamat","Satamat ja polttoaineasemat","Venesatamat palvelutietoineen. Haetaan kerran ja jää talteen."],["luiskat","Veneenlaskuluiskat","Paikat, joissa veneen voi laskea trailerilta veteen."],["saunat","Yleiset saunat saarissa","Helsingin ja Espoon edustan saarten yleiset ja varattavat saunat."]].map(k => '<label class="cb"><input type="checkbox" data-lisa="' + k[0] + '"' + (T.as[k[0]] ? ' checked' : '') + '>' + k[1] + '</label>').join('') +
       '<label class="cb"><input type="checkbox" id="kKall"' + (T.as.kallistus ? ' checked' : '') + '>Näytä kallistusmittari kartalla</label>' +
       '<label class="cb"><input type="checkbox" id="kSuuntaviiva"' + (T.as.suuntaviiva ? ' checked' : '') + '>Veneen suuntaviiva</label>' +
       '<div class="pieni" id="kSuuntaTila">' + (!paikkaTuore() ? 'Suuntaviiva näkyy, kun GPS on päällä ja vene liikkuu.' : kulku == null ? 'Kulkusuuntaa ei vielä tiedetä: viiva ilmestyy, kun vene on liikkunut noin 10 metriä.' : 'Kulkusuunta nyt ' + Math.round(kulku) + '° ' + ilmansuunta(kulku) + '.') + '</div>' +
@@ -1131,7 +1131,7 @@ function valitsePaikka(otsikko, cb, o) {
   const oletus = () => { lista = []; return (o.sijainti ? rivi({ sijainti: true, nimi: 'Nykyinen sijainti' }, paikkaNyt() ? koord(...paikkaNyt()) : 'sijaintia ei vielä ole') : '') + (T.koti && !o.eiKotia ? rivi(T.koti, 'Kotisatama') : '') + T.paikat.filter(p => !T.koti || p.nimi !== T.koti.nimi).map(p => rivi({ nimi: p.nimi, lat: p.lat, lon: p.lon }, 'Oma paikka')).join('') + T.kalapaikat.map(k => rivi({ nimi: k.nimi, lat: k.lat, lon: k.lon }, 'Kalapaikka' + (k.lajit ? ': ' + k.lajit : ''))).join('') + lahiSatamat(); };
   // Satamat sovelluksen mukana tulevasta tai laitteelle päivitetystä satamaluettelosta: löytyvät nimellä myös ilman verkkoa.
   const satamaLista = () => ((lisa.satamat || (typeof SATAMAT_PAKETTI !== 'undefined' ? SATAMAT_PAKETTI : null) || { lista: [] }).lista).filter(s => s.n);
-  const satamaLaji = s => (s.l === 'satama' ? 'Satama' : s.l === 'polttoaine' ? 'Polttoaineasema' : 'Veneilyn palvelu') + (s.t && s.t['addr:city'] ? ', ' + s.t['addr:city'] : '');
+  const satamaLaji = s => (s.l === 'satama' ? 'Satama' : s.l === 'luiska' ? 'Veneenlaskuluiska' : s.l === 'polttoaine' ? 'Polttoaineasema' : 'Veneilyn palvelu') + (s.t && s.t['addr:city'] ? ', ' + s.t['addr:city'] : '');
   // viisi lähintä satamaa nykyisestä sijainnista
   const lahiSatamat = () => { const s = paikkaNyt(); if (!s) return ''; return satamaLista().filter(x => x.l === 'satama').map(x => [etaisyys(s[0], s[1], x.la, x.lo), x]).sort((a, b) => a[0] - b[0]).slice(0, 5).map(([d, x]) => rivi({ nimi: x.n, lat: x.la, lon: x.lo }, satamaLaji(x) + ' · ' + n(d / MPK) + ' mpk täältä')).join(''); };
   d.innerHTML = '<form method="dialog"><h3>' + e(otsikko) + '</h3><div class="hakurivi"><input id="pHaku" placeholder="Sataman tai paikan nimi, esim. Porvoo" autocomplete="off" enterkeyhint="search"><button type="button" class="nappi" id="pHae">Hae</button></div>' +
@@ -1150,6 +1150,12 @@ function valitsePaikka(otsikko, cb, o) {
     // satamat: nimen alusta osuvat ensin, sitten lähimmät
     const tama = paikkaNyt(), osuvat = satamaLista().filter(x => x.n.toLowerCase().includes(pieni) || (x.t && (x.t['addr:city'] || '').toLowerCase().includes(pieni)));
     h += osuvat.map(x => [(x.n.toLowerCase().startsWith(pieni) ? 0 : 1e7) + (x.l === 'satama' ? 0 : 5e6) + (tama ? etaisyys(tama[0], tama[1], x.la, x.lo) : 0), x]).sort((a, b) => a[0] - b[0]).slice(0, 8).map(([, x]) => rivi({ nimi: x.n, lat: x.la, lon: x.lo }, satamaLaji(x) + (tama ? ' · ' + n(etaisyys(tama[0], tama[1], x.la, x.lo) / MPK) + ' mpk täältä' : ''))).join('');
+    // yleiset saunat: nimellä tai saaren nimellä, ja sanalla "sauna" kahdeksan lähintä
+    { const k = tama || [lv.lat, lv.lon], sa = /saun/.test(pieni) ? saunaLista() : saunaLista().filter(x => (x.n + ' ' + x.saari).toLowerCase().includes(pieni));
+      h += sa.map(x => [etaisyys(k[0], k[1], x.la, x.lo), x]).sort((a, b) => a[0] - b[0]).slice(0, 8).map(([et, x]) => rivi({ nimi: x.n, lat: x.la, lon: x.lo }, 'Yleinen sauna, ' + x.saari + ' · ' + n(et / MPK) + ' mpk ' + (tama ? 'täältä' : 'kartan keskeltä'))).join(''); }
+    // hakusana "luiska" tai "veneenlasku": lähimmät veneenlaskuluiskat, myös nimettömät
+    if (/luisk|veneenlasku|ramp/.test(pieni)) { const k = tama || [lv.lat, lv.lon], kaikki = (lisa.satamat || (typeof SATAMAT_PAKETTI !== 'undefined' ? SATAMAT_PAKETTI : null) || { lista: [] }).lista;
+      h += kaikki.filter(x => x.l === 'luiska' && !osuvat.includes(x)).map(x => [etaisyys(k[0], k[1], x.la, x.lo), x]).sort((a, b) => a[0] - b[0]).slice(0, 8).map(([et, x]) => rivi({ nimi: x.n || 'Veneluiska ' + (x.t && x.t['addr:city'] || koord(x.la, x.lo)), lat: x.la, lon: x.lo }, satamaLaji(x) + ' · ' + n(et / MPK) + ' mpk ' + (tama ? 'täältä' : 'kartan keskeltä'))).join(''); }
     await vaylatMuistiin();
     if (vayla) h += vayla.merkit.filter(m => m[3] && m[3].toLowerCase().includes(pieni)).sort((a, b) => a[3].length - b[3].length).slice(0, 6).map(m => rivi({ nimi: m[3], lat: m[1], lon: m[0] }, 'Merimerkki: ' + (MERKKILAJIT[m[2]] || m[4]))).join('');
     el.innerHTML = h + '<div class="pieni" id="pTila">' + (navigator.onLine ? 'Haetaan…' : 'Ei verkkoa: haku näyttää omat paikat, satamat ja merimerkit.') + '</div>';
@@ -1351,7 +1357,7 @@ async function satamatHae(pakko) {
   lisa.satamaHaku = true; lisa.satamaVirhe = ''; ilmoita('Haetaan satamatietoja. Tämä voi kestää noin minuutin.');
   try {
     // kaikki ladattavat merialueet samalla haulla
-    const q = '[out:json][timeout:150];(' + ALUEET.map(a => { const B = '(' + [a.b.la0, a.b.lo0, a.b.la1, a.b.lo1].join(',') + ')'; return 'nwr["leisure"="marina"]' + B + ';nwr["seamark:type"="harbour"]' + B + ';nwr["seamark:type"="small_craft_facility"]' + B + ';nwr["waterway"="fuel"]' + B + ';'; }).join('') + ');out center tags;';
+    const q = '[out:json][timeout:150];(' + ALUEET.map(a => { const B = '(' + [a.b.la0, a.b.lo0, a.b.la1, a.b.lo1].join(',') + ')'; return 'nwr["leisure"="marina"]' + B + ';nwr["seamark:type"="harbour"]' + B + ';nwr["seamark:type"="small_craft_facility"]' + B + ';nwr["waterway"="fuel"]' + B + ';nwr["leisure"="slipway"]' + B + ';'; }).join('') + ');out center tags;';
     const r = await fetch('https://overpass-api.de/api/interpreter', { method: 'POST', body: new URLSearchParams({ data: q }) });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const lista = satamatMuunna((await r.json()).elements);
@@ -1363,10 +1369,10 @@ async function satamatHae(pakko) {
   laattaSaapui(); if (nakyma === 'lisaa') piirra();
 }
 // Kutsutaan viiveellä aina kun karttaa on piirretty: hakee puuttuvat tai vanhentuneet tiedot.
-function lisatAjasta() { if (!(T.as.tuuli || T.as.ais || T.as.satamat)) return; clearTimeout(lisa.ajastin); lisa.ajastin = setTimeout(lisatPaivita, 1200); }
+function lisatAjasta() { if (!(T.as.tuuli || T.as.ais || T.as.satamat || T.as.luiskat)) return; clearTimeout(lisa.ajastin); lisa.ajastin = setTimeout(lisatPaivita, 1200); }
 function lisatPaivita() {
   if (nakyma !== 'kartta' || !kLive || !kLive.cv.isConnected) return;
-  if (T.as.satamat && !lisa.satamat) satamatHae();
+  if ((T.as.satamat || T.as.luiskat) && !lisa.satamat) satamatHae();
   if (!navigator.onLine) return;
   if (T.as.tuuli && (!lisa.tuuli || Date.now() - lisa.tuuli.aika > 30 * 60000 || siirtynyt(lisa.tuuli.nakyma)) && !(lisa.tuuliVirhe && Date.now() - lisa.tuuliVirhe < 30000)) tuuliHae();
   if (T.as.ais && (Date.now() - lisa.aisAika > 60000 || (lisa.ais && siirtynyt(lisa.aisNakyma) && Date.now() - lisa.aisAika > 5000))) aisHae();
@@ -1390,13 +1396,16 @@ function piirraLisat(c, X, Y, W, H, z) {
   }
   const sisalla = (x, y) => x > -30 && y > -30 && x < W + 30 && y < H + 30;
   const teksti = (s, x, y, koko, vari) => { c.font = '600 ' + koko + 'px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top'; c.lineWidth = 3.5; c.strokeStyle = 'rgba(255,255,255,.92)'; c.strokeText(s, x, y); c.fillStyle = vari; c.fillText(s, x, y); };
-  if (T.as.satamat && lisa.satamat && z >= 8.5) for (const s of lisa.satamat.lista) {
-    const x = X(s.lo), y = Y(s.la); if (!sisalla(x, y)) continue; if (s.l !== 'satama' && z < 11) continue;
-    const r = s.l === 'satama' ? 9 : 7;
-    c.beginPath(); c.arc(x, y, r, 0, 7); c.fillStyle = s.l === 'satama' ? '#0f2a43' : s.l === 'polttoaine' ? '#e8590c' : '#6b7780'; c.fill(); c.lineWidth = 2; c.strokeStyle = '#fff'; c.stroke();
+  // Satamat ja palvelut omalla kytkimellään, veneenlaskuluiskat omallaan (violetti merkki, näkyvät tasolta 10).
+  if ((T.as.satamat || T.as.luiskat) && lisa.satamat && z >= 8.5) for (const s of lisa.satamat.lista) {
+    if (s.l === 'luiska' ? !T.as.luiskat || z < 10 : !T.as.satamat || (s.l !== 'satama' && z < 11)) continue;
+    const x = X(s.lo), y = Y(s.la); if (!sisalla(x, y)) continue;
+    const r = s.l === 'satama' ? 9 : s.l === 'luiska' ? 8 : 7;
+    c.beginPath(); c.arc(x, y, r, 0, 7); c.fillStyle = s.l === 'satama' ? '#0f2a43' : s.l === 'polttoaine' ? '#e8590c' : s.l === 'luiska' ? '#6741d9' : '#6b7780'; c.fill(); c.lineWidth = 2; c.strokeStyle = '#fff'; c.stroke();
     c.strokeStyle = c.fillStyle = '#fff'; c.lineWidth = 1.6; c.beginPath();
     if (s.l === 'satama') { c.moveTo(x, y - 5); c.lineTo(x, y + 5); c.moveTo(x - 3, y - 2.5); c.lineTo(x + 3, y - 2.5); c.moveTo(x - 5, y + 1.5); c.quadraticCurveTo(x - 4.5, y + 5.5, x, y + 5.5); c.quadraticCurveTo(x + 4.5, y + 5.5, x + 5, y + 1.5); c.stroke(); }      // ankkuri
     else if (s.l === 'polttoaine') { c.moveTo(x, y - 4.5); c.bezierCurveTo(x + 4.5, y, x + 3.5, y + 4.5, x, y + 4.5); c.bezierCurveTo(x - 3.5, y + 4.5, x - 4.5, y, x, y - 4.5); c.fill(); }      // pisara
+    else if (s.l === 'luiska') { c.moveTo(x - 5, y + 3.2); c.lineTo(x + 4.5, y + 3.2); c.lineTo(x + 4.5, y - 3.8); c.closePath(); c.fill(); }      // kalteva luiska
     else { c.arc(x, y, 2, 0, 7); c.fill(); }
     if (z >= 12 && s.n) teksti(s.n, x, y + r + 3, 12, '#0f2a43');
     lisa.osumat.push({ x, y, r: r + 12, laji: 'satama', d: s });
@@ -1410,6 +1419,17 @@ function piirraLisat(c, X, Y, W, H, z) {
     c.beginPath(); c.arc(x - 5.2, y - 1, 1.1, 0, 7); c.fillStyle = '#0b7a8f'; c.fill();
     if (z >= 12 && k.nimi) teksti(k.nimi, x, y + 16, 12, '#075565');
     lisa.osumat.push({ x, y, r: 26, laji: 'kala', d: k });
+  }
+  // Yleiset saunat saarissa (tiedot/saunat.js): ruskea merkki, jossa kiuas ja löyly. Napautus avaa tiedot.
+  if (T.as.saunat && z >= 8.5) for (const k of saunaLista()) {
+    const x = X(k.lo), y = Y(k.la); if (!sisalla(x, y)) continue;
+    c.beginPath(); c.arc(x, y, 12, 0, 7); c.fillStyle = '#8a4b16'; c.fill(); c.lineWidth = 2.5; c.strokeStyle = '#fff'; c.stroke();
+    c.fillStyle = '#fff'; c.fillRect(x - 5.5, y + 2, 11, 5);
+    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.lineCap = 'round'; c.beginPath();
+    for (const dx of [-3.5, 0, 3.5]) { c.moveTo(x + dx, y - 0.5); c.quadraticCurveTo(x + dx - 2, y - 2.5, x + dx, y - 4.5); c.quadraticCurveTo(x + dx + 2, y - 6.5, x + dx, y - 8); }
+    c.stroke();
+    if (z >= 11.5) teksti(k.n, x, y + 14, 12, '#5f3310');
+    lisa.osumat.push({ x, y, r: 24, laji: 'sauna', d: k });
   }
   const ra = T.as.rajoitus && vayla && vayla.rajoitukset;
   if (ra && z >= 10) {
@@ -1460,22 +1480,38 @@ const KYLLA = v => v === 'yes' ? 'kyllä' : v === 'no' ? 'ei' : v;
 function satamaIkkuna(s) {
   const t = s.t || {}, d = $('#dlg'), rivit = [], lisaa = (nimi, arvo) => { if (arvo) rivit.push('<div class="rivi"><div class="v"><span class="pieni">' + nimi + '</span><b>' + e(KYLLA(arvo)) + '</b></div></div>'); };
   const fc = t['seamark:small_craft_facility:category'] || '';
-  lisaa('Tyyppi', s.l === 'satama' ? 'Venesatama' + (t.access === 'private' ? ' (yksityinen)' : '') : s.l === 'polttoaine' ? 'Polttoaineasema' : /pump/.test(fc) ? 'Septitankin tyhjennys' : /slipway/.test(fc) ? 'Veneluiska' : /hoist/.test(fc) ? 'Venenosturi' : /boatyard/.test(fc) ? 'Telakka' : 'Veneilyn palvelu');
+  lisaa('Tyyppi', s.l === 'luiska' ? 'Veneenlaskuluiska' + (t.access === 'private' ? ' (yksityinen)' : t.access === 'customers' ? ' (vain asiakkaille)' : '') : s.l === 'satama' ? 'Venesatama' + (t.access === 'private' ? ' (yksityinen)' : '') : s.l === 'polttoaine' ? 'Polttoaineasema' : /pump/.test(fc) ? 'Septitankin tyhjennys' : /slipway/.test(fc) ? 'Veneluiska' : /hoist/.test(fc) ? 'Venenosturi' : /boatyard/.test(fc) ? 'Telakka' : 'Veneilyn palvelu');
   lisaa('Paikkakunta', t['addr:city']); lisaa('Ylläpitäjä', t.operator); lisaa('Maksullinen', t.fee); lisaa('Venepaikkoja', t.capacity);
   lisaa('Suurin syväys (m)', t.maxdraught || t.maxdraft || t.depth); lisaa('Sähkö', t.power_supply); lisaa('Juomavesi', t.drinking_water); lisaa('Septitankin tyhjennys', t.sanitary_dump_station);
   lisaa('Suihku', t.shower); lisaa('WC', t.toilets); lisaa('Sauna', t.sauna); lisaa('Verkkoyhteys', t.internet_access);
   lisaa('Polttoaine', [t['fuel:diesel'] === 'yes' ? 'diesel' : '', t['fuel:octane_95'] === 'yes' ? '95' : '', t['fuel:octane_98'] === 'yes' ? '98' : ''].filter(Boolean).join(', '));
+  lisaa('Pinta', ({ concrete: 'betoni', asphalt: 'asfaltti', gravel: 'sora', fine_gravel: 'sora', compacted: 'tiivistetty sora', sand: 'hiekka', ground: 'maa', dirt: 'maa', wood: 'puu', paved: 'päällystetty', unpaved: 'päällystämätön', 'concrete:plates': 'betonilaatat', 'concrete:lanes': 'betonikaistat', metal: 'metalli' })[t.surface] || t.surface);
   lisaa('Aukioloajat', t.opening_hours); lisaa('Lisätietoja', t.description);
   const puh = t.phone || t['contact:phone'], www = t.website || t['contact:website'];
-  d.innerHTML = '<form method="dialog"><h3>' + e(s.n || 'Nimetön kohde') + '</h3><div class="plista">' + rivit.join('') + '</div>' +
+  d.innerHTML = '<form method="dialog"><h3>' + e(s.n || (s.l === 'luiska' ? 'Veneenlaskuluiska' : 'Nimetön kohde')) + '</h3><div class="plista">' + rivit.join('') + '</div>' +
     (rivit.length < 3 ? '<div class="pieni">Tästä kohteesta ei ole tallennettu palvelutietoja.</div>' : '') +
     (puh ? '<a class="nappi" href="tel:' + e(puh.split(';')[0].replace(/[^+\d]/g, '')) + '">Soita ' + e(puh.split(';')[0]) + '</a>' : '') +
     (www && /^https?:\/\//.test(www) ? '<a class="nappi" href="' + e(www) + '" target="_blank" rel="noopener">Avaa verkkosivu</a>' : '') +
-    '<div class="pieni">Tiedot ovat OpenStreetMapista (© OpenStreetMapin tekijät), ja ne voivat olla puutteellisia tai vanhentuneita. Tarkista palvelut ja vieraspaikat satamasta.</div>' +
+    '<div class="pieni">Tiedot ovat OpenStreetMapista (© OpenStreetMapin tekijät), ja ne voivat olla puutteellisia tai vanhentuneita. ' + (s.l === 'luiska' ? 'Tarkista luiskan kunto, syvyys ja käyttöoikeus paikan päältä.' : 'Tarkista palvelut ja vieraspaikat satamasta.') + '</div>' +
     '<div class="napit"><button type="button" class="nappi" id="sSulje">Sulje</button><button type="button" class="nappi paa" id="sReitti">Reitti tänne</button></div></form>';
   d.querySelector('#sSulje').onclick = () => d.close();
   d.querySelector('#sReitti').onclick = async () => {
-    d.close(); rs.minne = { nimi: s.n || koord(s.la, s.lo), lat: s.la, lon: s.lo }; rs.mista = { sijainti: true, nimi: 'Nykyinen sijainti' };
+    d.close(); rs.minne = { nimi: s.n || (s.l === 'luiska' ? 'Veneluiska ' : '') + koord(s.la, s.lo), lat: s.la, lon: s.lo }; rs.mista = { sijainti: true, nimi: 'Nykyinen sijainti' };
+    if (!paikkaNyt() || !await vaylaverkko()) { reittiIkkuna(); return; }
+    if (await laskeReitti()) naytaReitti();
+  };
+  d.showModal();
+}
+const saunaLista = () => typeof SAUNAT_PAKETTI !== 'undefined' ? SAUNAT_PAKETTI.lista : [];
+function saunaIkkuna(s) {
+  const d = $('#dlg'), rivi = (nimi, arvo) => arvo ? '<div class="rivi"><div class="v"><span class="pieni">' + nimi + '</span><b>' + e(arvo) + '</b></div></div>' : '';
+  d.innerHTML = '<form method="dialog"><h3>' + e(s.n) + '</h3><div class="plista">' + rivi('Saari', s.saari + (s.kunta ? ', ' + s.kunta : '')) + rivi('Käyttö', s.kaytto) + rivi('Maksu', s.maksu) + rivi('Kausi ja ajat', s.kausi) + rivi('Omalla veneellä', s.vene) + rivi('Varaus', s.varaus) + rivi('Lisätietoja', s.lisa) + '</div>' +
+    (s.www && /^https?:\/\//.test(s.www) ? '<a class="nappi" href="' + e(s.www) + '" target="_blank" rel="noopener">Avaa saunan verkkosivu</a>' : '') +
+    '<div class="pieni">Tiedot on koottu ylläpitäjien verkkosivuilta ' + e(SAUNAT_PAKETTI.tarkistettu) + '. Hinnat, vuorot ja aukiolo muuttuvat: varmista ne ennen lähtöä. Merkin paikka kartalla on likimääräinen.</div>' +
+    '<div class="napit"><button type="button" class="nappi" id="sSulje">Sulje</button><button type="button" class="nappi paa" id="sReitti">Reitti tänne</button></div></form>';
+  d.querySelector('#sSulje').onclick = () => d.close();
+  d.querySelector('#sReitti').onclick = async () => {
+    d.close(); rs.minne = { nimi: s.n, lat: s.la, lon: s.lo }; rs.mista = { sijainti: true, nimi: 'Nykyinen sijainti' };
     if (!paikkaNyt() || !await vaylaverkko()) { reittiIkkuna(); return; }
     if (await laskeReitti()) naytaReitti();
   };
@@ -1493,7 +1529,7 @@ function aisIkkuna(a) {
 // Kartan napautus: avaa lähimmän sataman tai aluksen tiedot.
 function karttaNapautus(x, y) {
   let paras = null, pd = Infinity; for (const o of lisa.osumat) { const d = Math.hypot(o.x - x, o.y - y); if (d <= o.r && d < pd) { pd = d; paras = o; } }
-  if (paras) (paras.laji === 'ais' ? aisIkkuna : paras.laji === 'kala' ? kalapaikkaIkkuna : satamaIkkuna)(paras.d);
+  if (paras) (paras.laji === 'ais' ? aisIkkuna : paras.laji === 'kala' ? kalapaikkaIkkuna : paras.laji === 'sauna' ? saunaIkkuna : satamaIkkuna)(paras.d);
 }
 Object.assign(A, { aisNyt() { if (!navigator.onLine) { ilmoita('Ei verkkoyhteyttä.'); return; } lisa.aisAika = 0; aisHae(); }, satamatPaivita() { satamatHae(true); }, tuuliAika() { lisa.tunti = (lisa.tunti + 1) % TUNNIT.length; if (kLive) kLive.piirra(); } });
 setInterval(() => { if (typeof T !== 'undefined' && T && nakyma === 'kartta') lisatPaivita(); }, 60000);
@@ -1812,7 +1848,7 @@ async function alku() {
     const el = ev.target, c = el.dataset.c;
     if (c === 'vuosi') { vuosi = el.value; piirra(); }
     else if (c === 'kartta') { T.as.kartta = el.value; await talletaT(); piirra(); }
-    else if (c === 'tuuli' || c === 'ais' || c === 'satamat') { T.as[c] = el.checked; await talletaT(); piirra(); }
+    else if (c === 'tuuli' || c === 'ais' || c === 'satamat' || c === 'luiskat' || c === 'saunat') { T.as[c] = el.checked; await talletaT(); piirra(); }
     else if (c === 'rajoitus') { T.as.rajoitus = el.checked; if (!el.checked) { raj.nyt = []; raj.yli = false; } await talletaT(); piirra(); }
     else if (c === 'kallistus') { T.as.kallistus = el.checked && await kallPaalle(); if (!T.as.kallistus) kallPois(); await talletaT(); piirra(); }
     else if (c === 'yksikko') { T.as.yksikko = el.value; await talletaT(); piirra(); }

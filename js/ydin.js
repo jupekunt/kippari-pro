@@ -345,16 +345,18 @@ function kallistus(u, u0, kulma) {
 }
 
 // ---------- satamat OpenStreetMapista ----------
-// Muuntaa Overpass-haun kohteet tiiviiksi listaksi: {n: nimi, la, lo, l: 'satama' | 'polttoaine' | 'palvelu', t: {palvelutiedot}}.
-const SATAMA_TAGIT = ['fee', 'capacity', 'maxdraught', 'maxdraft', 'depth', 'power_supply', 'drinking_water', 'sanitary_dump_station', 'shower', 'toilets', 'sauna', 'internet_access', 'fuel:diesel', 'fuel:octane_95', 'fuel:octane_98', 'opening_hours', 'operator', 'phone', 'contact:phone', 'website', 'contact:website', 'description', 'access', 'addr:city', 'seamark:small_craft_facility:category'];
+// Muuntaa Overpass-haun kohteet tiiviiksi listaksi: {n: nimi, la, lo, l: 'satama' | 'polttoaine' | 'luiska' | 'palvelu', t: {palvelutiedot}}.
+const SATAMA_TAGIT = ['fee', 'capacity', 'maxdraught', 'maxdraft', 'depth', 'power_supply', 'drinking_water', 'sanitary_dump_station', 'shower', 'toilets', 'sauna', 'internet_access', 'fuel:diesel', 'fuel:octane_95', 'fuel:octane_98', 'opening_hours', 'operator', 'phone', 'contact:phone', 'website', 'contact:website', 'description', 'access', 'surface', 'addr:city', 'seamark:small_craft_facility:category'];
 function satamatMuunna(kohteet) {
   const lista = [];
   for (const el of kohteet || []) {
     const t = el.tags || {}, la = el.lat != null ? el.lat : el.center && el.center.lat, lo = el.lon != null ? el.lon : el.center && el.center.lon; if (la == null || lo == null) continue;
     const fc = t['seamark:small_craft_facility:category'] || '', hc = t['seamark:harbour:category'];
-    const laji = t.waterway === 'fuel' || /fuel/.test(fc) ? 'polttoaine' : t.leisure === 'marina' || (t['seamark:type'] === 'harbour' && (!hc || hc === 'marina')) ? 'satama' : t['seamark:type'] === 'small_craft_facility' ? 'palvelu' : null;
+    const laji = t.waterway === 'fuel' || /fuel/.test(fc) ? 'polttoaine' : t.leisure === 'marina' || (t['seamark:type'] === 'harbour' && (!hc || hc === 'marina')) ? 'satama' : t.leisure === 'slipway' || /slipway/.test(fc) ? 'luiska' : t['seamark:type'] === 'small_craft_facility' ? 'palvelu' : null;
     const nimi = t['name:fi'] || t.name || ''; if (!laji || (laji === 'satama' && !nimi)) continue;      // nimettömät pienlaiturit jätetään pois
-    if (lista.some(s => s.l === laji && s.n === nimi && etaisyys(s.la, s.lo, la, lo) < 400)) continue;      // sama kohde pisteenä ja alueena
+    if (laji === 'luiska' && t.access === 'no') continue;      // käytöstä suljetut luiskat pois
+    // sama kohde pisteenä ja alueena; luiskat ovat usein nimettömiä ja lähekkäin, joten niille tiukempi raja
+    if (lista.some(s => s.l === laji && (laji === 'luiska' ? etaisyys(s.la, s.lo, la, lo) < (nimi && s.n === nimi ? 400 : 40) : s.n === nimi && etaisyys(s.la, s.lo, la, lo) < 400))) continue;
     const tt = {}; for (const k of SATAMA_TAGIT) if (t[k]) tt[k] = t[k];
     lista.push({ n: nimi, la: +la.toFixed(6), lo: +lo.toFixed(6), l: laji, t: tt });
   }
