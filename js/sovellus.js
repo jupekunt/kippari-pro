@@ -408,37 +408,42 @@ function karttaHtml(id, paa) {
 // Karttapalat: muisti -> laitteen tallennus -> verkko. Palauttaa kuvan, null (ei saatavilla) tai undefined (haku kesken).
 const muisti = new Map();
 function haeLaatta(K, z, x, y, lataa) {
-  const avain = K.id + '/' + z + '/' + x + '/' + y; let m = muisti.get(avain);
-  if (m) return m.im || (m.ei ? null : undefined);
+  // lataa: true / undefined = laitteelta tai verkosta, 'db' = vain laitteelle tallennettu (ei verkkohakua), false = vain jo muistissa oleva
+  const avain = K.id + '/' + z + '/' + x + '/' + y, vainDb = lataa === 'db'; let m = muisti.get(avain);
+  // eiDb = palaa ei ole laitteella, verkosta ei ole vielä kysytty: täysi haku saa yrittää verkkoa
+  if (m && !(m.eiDb && !vainDb && lataa !== false)) return m.im || (m.ei || m.eiDb ? null : undefined);
   if (lataa === false) return undefined;
-  m = { im: null, ei: false }; muisti.set(avain, m);
-  if (muisti.size > 600) { let i = 0; for (const k of muisti.keys()) { if (i++ >= 150) break; muisti.delete(k); } }
+  const dbKatsottu = !!m;
+  if (m) m.eiDb = false; else { m = { im: null, ei: false, eiDb: false }; muisti.set(avain, m); }
+  if (muisti.size > 900) { let i = 0; for (const k of muisti.keys()) { if (i++ >= 250) break; muisti.delete(k); } }
   const valmis = src => { const im = new Image(); im.onload = () => { if (src.startsWith('blob:')) { URL.revokeObjectURL(src); if (tyhjaKuva(im)) { m.ei = true; laattaSaapui(); return; } } m.im = im; laattaSaapui(); }; im.onerror = () => { m.ei = true; laattaSaapui(); }; im.src = src; };
-  if (!K.talteen) { if (navigator.onLine) valmis(K.url(z, x, y)); else m.ei = true; return m.ei ? null : undefined; }
+  if (!K.talteen) { if (vainDb) { m.eiDb = true; return null; } if (navigator.onLine) valmis(K.url(z, x, y)); else m.ei = true; return m.ei ? null : undefined; }
   (async () => {
     let b = null;
-    try { b = await DB.get('laatat', avain); } catch (x) { }
+    if (!dbKatsottu) try { b = await DB.get('laatat', avain); } catch (x) { }
+    if (!b && vainDb) { m.eiDb = true; laattaSaapui(); return; }
     let tilapainen = false;
     if (!b && navigator.onLine) { b = await haeKuva(K.url(z, x, y)); if (b) DB.put('laatat', b, avain).catch(() => { }); else tilapainen = b === undefined; }
     if (b) valmis(URL.createObjectURL(b));
     else {
       m.ei = true; laattaSaapui();
-      // palvelun tilapäinen virhe: pala unohdetaan hetken päästä, jolloin se haetaan uudelleen, jos se on yhä näkyvissä
+      // palvelun tai yhteyden tilapäinen virhe: pala unohdetaan hetken päästä, jolloin se haetaan uudelleen, jos se on yhä näkyvissä
       if (tilapainen) setTimeout(() => { if (muisti.get(avain) === m) { muisti.delete(avain); laattaSaapui(); } }, 12000);
     }
   })();
   return undefined;
 }
 // Karttapalan haku verkosta. Palauttaa kuvan, null (palaa ei ole) tai undefined (tilapäinen virhe).
-// Karttapalvelu vastaa ruuhkassa satunnaisesti virheellä 500, joten palvelinvirhe ja yhteysvirhe yritetään muutaman kerran uudelleen.
-async function haeKuva(url, yrityksia) {
+// Karttapalvelu vastaa ruuhkassa satunnaisesti virheellä 500: palvelinvirhe yritetään muutaman kerran uudelleen.
+// Yhteysvirhe tai yli 9 sekunnin odotus (heikko verkko merellä) lopettaa heti, ellei sitkea = true (alueen lataus talteen).
+async function haeKuva(url, yrityksia, sitkea) {
   for (let i = 0; i < (yrityksia || 4); i++) {
     if (i) await new Promise(ok => setTimeout(ok, 300 + 700 * i + Math.random() * 400));
     try {
-      const r = await fetch(url);
+      const r = await fetch(url, AbortSignal.timeout ? { signal: AbortSignal.timeout(sitkea ? 20000 : 9000) } : undefined);
       if (r.ok) return /^image/.test(r.headers.get('content-type') || '') ? await r.blob() : null;
       if (r.status < 500 && r.status !== 429 && r.status !== 408) return null;
-    } catch (x) { if (!navigator.onLine) return undefined; }
+    } catch (x) { if (!sitkea || !navigator.onLine) return undefined; }
   }
   return undefined;
 }
@@ -457,15 +462,15 @@ async function lataaLaatat(lista, edistys, tila) {
       const [z, x, y] = lista[i++], avain = 'meri/' + z + '/' + x + '/' + y;
       try {
         if (await DB.onko('laatat', avain)) ennestaan++;
-        else { const b = await haeKuva(K.url(z, x, y)); if (b) { await DB.put('laatat', b, avain); ok++; } else puuttuu++; }
+        else { const b = await haeKuva(K.url(z, x, y), 4, true); if (b) { await DB.put('laatat', b, avain); ok++; } else puuttuu++; }
         const S = K.paalle, sa = 'satama/' + z + '/' + x + '/' + y;       // tarkimmilla tasoilla myös satamakartta
-        if (z >= S.minZ && !(await DB.onko('laatat', sa))) { const b = await haeKuva(S.url(z, x, y)); if (b) await DB.put('laatat', b, sa); }
+        if (z >= S.minZ && !(await DB.onko('laatat', sa))) { const b = await haeKuva(S.url(z, x, y), 4, true); if (b) await DB.put('laatat', b, sa); }
       } catch (x) { puuttuu++; if (x && x.name === 'QuotaExceededError') { tila.taynna = true; tila.peru = true; } }
       edistys(ok + ennestaan + puuttuu, lista.length);
     }
   };
   await Promise.all([tyo(), tyo(), tyo(), tyo()]);
-  for (const [k, m] of muisti) if (m.ei) muisti.delete(k);      // aiemmin puuttuneet haetaan uudelleen
+  for (const [k, m] of muisti) if (m.ei || m.eiDb) muisti.delete(k);      // aiemmin puuttuneet haetaan uudelleen
   return { ok, ennestaan, puuttuu };
 }
 
@@ -529,9 +534,10 @@ class Kartta {
       if (im) { c.drawImage(im, dx, dy, L + .6, L + .6); piirretty++; }
       // Pala puuttuu tai on vielä tulossa: näytetään karkeampi taso suurennettuna, jos sellainen on.
       else for (let d = 1; d <= 6 && zi - d >= 3; d++) {
-        const p = haeLaatta(K, zi - d, tx >> d, ty >> d, im === null);
+        // Kun tarkin pala on vielä tulossa verkosta, karkeampi taso haetaan heti laitteen tallennuksesta ('db') odottamatta verkkoa.
+        const p = haeLaatta(K, zi - d, tx >> d, ty >> d, im === null ? true : 'db');
         if (p) { const k = 256 / 2 ** d; c.drawImage(p, (tx - ((tx >> d) << d)) * k, (ty - ((ty >> d) << d)) * k, k, k, dx, dy, L + .6, L + .6); piirretty++; break; }
-        if (im === null && p === undefined) break;
+        if (p === undefined) break;
       }
       // Lähelle zoomattaessa päälle piirretään tarkempi satamakartta siellä, missä sellainen on.
       if (K.paalle && zi >= K.paalle.minZ) { const s = haeLaatta(K.paalle, zi, tx, ty); if (s) { c.drawImage(s, dx, dy, L + .6, L + .6); tarkkoja++; } }
@@ -977,9 +983,14 @@ function valitsePaikka(otsikko, cb, o) {
   o = o || {}; const d = $('#dlg');
   const rivi = (p, lisa) => '<div class="rivi" data-i="' + lista.push(p) + '"><div class="v"><b>' + e(p.nimi) + '</b><span class="pieni">' + e(lisa) + '</span></div></div>';
   let lista = [];
-  const oletus = () => { lista = []; return (o.sijainti ? rivi({ sijainti: true, nimi: 'Nykyinen sijainti' }, paikkaNyt() ? koord(...paikkaNyt()) : 'sijaintia ei vielä ole') : '') + (T.koti && !o.eiKotia ? rivi(T.koti, 'Kotisatama') : '') + T.paikat.filter(p => !T.koti || p.nimi !== T.koti.nimi).map(p => rivi({ nimi: p.nimi, lat: p.lat, lon: p.lon }, 'Oma paikka')).join(''); };
-  d.innerHTML = '<form method="dialog"><h3>' + e(otsikko) + '</h3><div class="hakurivi"><input id="pHaku" placeholder="Paikan nimi, esim. Porvoo" autocomplete="off" enterkeyhint="search"><button type="button" class="nappi" id="pHae">Hae</button></div>' +
-    '<div id="pLista" class="plista">' + (oletus() || '<div class="pieni">Hae paikkaa nimellä tai valitse se kartalta.</div>') + '</div>' +
+  const oletus = () => { lista = []; return (o.sijainti ? rivi({ sijainti: true, nimi: 'Nykyinen sijainti' }, paikkaNyt() ? koord(...paikkaNyt()) : 'sijaintia ei vielä ole') : '') + (T.koti && !o.eiKotia ? rivi(T.koti, 'Kotisatama') : '') + T.paikat.filter(p => !T.koti || p.nimi !== T.koti.nimi).map(p => rivi({ nimi: p.nimi, lat: p.lat, lon: p.lon }, 'Oma paikka')).join('') + lahiSatamat(); };
+  // Satamat sovelluksen mukana tulevasta tai laitteelle päivitetystä satamaluettelosta: löytyvät nimellä myös ilman verkkoa.
+  const satamaLista = () => ((lisa.satamat || (typeof SATAMAT_PAKETTI !== 'undefined' ? SATAMAT_PAKETTI : null) || { lista: [] }).lista).filter(s => s.n);
+  const satamaLaji = s => (s.l === 'satama' ? 'Satama' : s.l === 'polttoaine' ? 'Polttoaineasema' : 'Veneilyn palvelu') + (s.t && s.t['addr:city'] ? ', ' + s.t['addr:city'] : '');
+  // viisi lähintä satamaa nykyisestä sijainnista
+  const lahiSatamat = () => { const s = paikkaNyt(); if (!s) return ''; return satamaLista().filter(x => x.l === 'satama').map(x => [etaisyys(s[0], s[1], x.la, x.lo), x]).sort((a, b) => a[0] - b[0]).slice(0, 5).map(([d, x]) => rivi({ nimi: x.n, lat: x.la, lon: x.lo }, satamaLaji(x) + ' · ' + n(d / MPK) + ' mpk täältä')).join(''); };
+  d.innerHTML = '<form method="dialog"><h3>' + e(otsikko) + '</h3><div class="hakurivi"><input id="pHaku" placeholder="Sataman tai paikan nimi, esim. Porvoo" autocomplete="off" enterkeyhint="search"><button type="button" class="nappi" id="pHae">Hae</button></div>' +
+    '<div id="pLista" class="plista">' + (oletus() || '<div class="pieni">Hae satamaa tai paikkaa nimellä tai valitse se kartalta.</div>') + '</div>' +
     '<div class="napit"><button type="button" class="nappi" id="pPeru">Peruuta</button><button type="button" class="nappi" id="pKartta">Valitse kartalta</button></div></form>';
   const valmis = p => {
     if (p.sijainti && (o.kiintea || !paikkaNyt())) { const s = paikkaNyt(); if (!s) { ilmoita('Sijaintia ei ole vielä. Käynnistä seuranta Matka-välilehdeltä.'); return; } p = { nimi: paikkaNimi(s) || koord(s[0], s[1]), lat: s[0], lon: s[1] }; }
@@ -990,9 +1001,12 @@ function valitsePaikka(otsikko, cb, o) {
     const q = d.querySelector('#pHaku').value.trim(), el = d.querySelector('#pLista'); if (q.length < 2) return;
     lista = []; const pieni = q.toLowerCase();
     let h = T.paikat.filter(p => p.nimi.toLowerCase().includes(pieni)).map(p => rivi({ nimi: p.nimi, lat: p.lat, lon: p.lon }, 'Oma paikka')).join('');
+    // satamat: nimen alusta osuvat ensin, sitten lähimmät
+    const tama = paikkaNyt(), osuvat = satamaLista().filter(x => x.n.toLowerCase().includes(pieni) || (x.t && (x.t['addr:city'] || '').toLowerCase().includes(pieni)));
+    h += osuvat.map(x => [(x.n.toLowerCase().startsWith(pieni) ? 0 : 1e7) + (x.l === 'satama' ? 0 : 5e6) + (tama ? etaisyys(tama[0], tama[1], x.la, x.lo) : 0), x]).sort((a, b) => a[0] - b[0]).slice(0, 8).map(([, x]) => rivi({ nimi: x.n, lat: x.la, lon: x.lo }, satamaLaji(x) + (tama ? ' · ' + n(etaisyys(tama[0], tama[1], x.la, x.lo) / MPK) + ' mpk täältä' : ''))).join('');
     await vaylatMuistiin();
     if (vayla) h += vayla.merkit.filter(m => m[3] && m[3].toLowerCase().includes(pieni)).sort((a, b) => a[3].length - b[3].length).slice(0, 6).map(m => rivi({ nimi: m[3], lat: m[1], lon: m[0] }, 'Merimerkki: ' + (MERKKILAJIT[m[2]] || m[4]))).join('');
-    el.innerHTML = h + '<div class="pieni" id="pTila">' + (navigator.onLine ? 'Haetaan…' : 'Ei verkkoa: haku näyttää vain omat paikat ja merimerkit.') + '</div>';
+    el.innerHTML = h + '<div class="pieni" id="pTila">' + (navigator.onLine ? 'Haetaan…' : 'Ei verkkoa: haku näyttää omat paikat, satamat ja merimerkit.') + '</div>';
     if (!navigator.onLine) return;
     try {
       const r = await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=8&accept-language=fi&countrycodes=fi,ee,se&viewbox=19,61.5,30.5,59&q=' + encodeURIComponent(q));
@@ -1438,7 +1452,7 @@ async function alku() {
     if (document.visibilityState === 'hidden') { if (tal.tila === 'matka') DB.put('kv', tal.vie(), 'kesken'); talletaT(); }
     else if (watchId != null) seurantaPaalle(true);      // paikannus ja näytön lukitus käyntiin uudelleen
   });
-  window.addEventListener('online', () => { merkit(); paivitaSaat(); for (const [k, m] of muisti) if (m.ei) muisti.delete(k); karttaUudelleen(); });
+  window.addEventListener('online', () => { merkit(); paivitaSaat(); for (const [k, m] of muisti) if (m.ei || m.eiDb) muisti.delete(k); karttaUudelleen(); });
   window.addEventListener('offline', merkit);
   window.addEventListener('resize', () => { document.documentElement.style.setProperty('--ylak', $('#yla').offsetHeight + 'px'); karttaUudelleen(); });
   vaylatMuistiin().then(v => { if (v && kLive) kLive.pyyda(); }).catch(() => { });
