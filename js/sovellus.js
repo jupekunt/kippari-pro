@@ -21,9 +21,9 @@ const HUOLLOT = [['Moottoriöljy ja öljynsuodatin', 100, 12], ['Vetolaitteen / 
   ['Sinkkianodit', 0, 12], ['Pohjan pesu ja myrkkymaali', 0, 12], ['Akkujen tarkistus', 0, 12], ['Sammuttimen tarkastus', 0, 12]];
 const KULULAJIT = ['Satama ja laituri', 'Huolto ja varaosat', 'Varusteet', 'Vakuutus', 'Talvisäilytys', 'Muu'];
 function uusiTila() {
-  return { vene: { nimi: '', tunnit0: 0, mpk0: 0, syvays: null, nopeus: 10 }, koti: null, reitit: [], paikat: [], tankkaukset: [], kulut: [],
+  return { vene: { nimi: '', tunnit0: 0, mpk0: 0, syvays: null, nopeus: 10 }, koti: null, reitit: [], paikat: [], kalapaikat: [], tankkaukset: [], kulut: [],
     huollot: HUOLLOT.map((h, i) => ({ id: 'h' + i, nimi: h[0], valiH: h[1], valiKk: h[2], tehtyPvm: null, tehtyH: null })),
-    as: { auto: true, pysMin: 15, seuranta: false, kartta: 'meri', yksikko: 'kn', kallistus: false, kallNolla: null, rajoitus: true, reittiSeuranta: true, reittiSivu: 200, suuntaviiva: true, syvyys: false, tuuli: false, ais: false, satamat: false }, saajono: [], kopio: null };
+    as: { auto: true, pysMin: 15, seuranta: false, kartta: 'meri', yksikko: 'kn', kallistus: false, kallNolla: null, rajoitus: true, reittiSeuranta: true, reittiSivu: 200, suuntaviiva: true, syvyys: false, kalapaikat: true, tuuli: false, ais: false, satamat: false }, saajono: [], kopio: null };
 }
 
 // ---------- tallennus ----------
@@ -236,6 +236,7 @@ function nKartta() {
     '<div class="knapit"><button data-a="keskita" id="lKarttaK" aria-label="Keskitä veneeseen" title="Keskitä veneeseen">' + KESKITA + '</button>' +
     '<button data-a="zoom" data-id="1" aria-label="Lähennä">+</button><button data-a="zoom" data-id="-1" aria-label="Loitonna">−</button>' +
     '<button data-a="reitti" aria-label="Reittisuunnittelu" title="Reittisuunnittelu"><svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H14a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h5.5"/></svg></button>' +
+    '<button data-a="kalapaikka" aria-label="Lisää kalapaikka" title="Lisää kalapaikka"><svg viewBox="0 0 24 24"><path d="M2.5 12c2.6-4.6 8.6-6 13-2.6L20.5 6v12l-5-3.4c-4.4 3.4-10.4 2-13-2.6z"/><circle cx="7.5" cy="11" r=".9" fill="currentColor"/></svg></button>' +
     '<button data-a="kartat" aria-label="Karttapohja ja lataus" title="Karttapohja ja lataus"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5zM3 12l9 5 9-5M3 16l9 5 9-5"/></svg></button></div>' +
     '<button class="kais" id="kAis" data-a="aisNyt" hidden title="Päivitä AIS-tiedot nyt"></button><button class="ktila" id="kTila" data-a="matkaSivu"></button>' + (omaR ? omaPalkki() : reittiPalkki()) + '<div class="ktekija">' + kartta().tekija + '</div></div>';
 }
@@ -350,6 +351,8 @@ function nLisaa() {
     '<div class="kortti"><h2>Varmuuskopio</h2><div class="pieni">Tiedot ovat vain tämän puhelimen selaimessa. Jos selaimen tiedot tyhjennetään tai puhelin vaihtuu, ne häviävät – vie kopio talteen säännöllisesti.' + (T.kopio ? ' Viimeisin kopio ' + pvm(T.kopio) + '.' : ' Kopiota ei ole vielä otettu.') + (vanha ? ' <b>Ota uusi kopio.</b>' : '') + '</div>' +
     '<div class="napit"><button class="nappi paa" data-a="vie">Vie varmuuskopio</button><button class="nappi" data-a="tuo">Palauta kopiosta</button></div><input type="file" id="tuoTiedosto" accept=".json,application/json" hidden></div>' +
     '<div class="kortti"><h2>Kartat ja väylätiedot ilman verkkoa</h2><div class="pieni">Alla olevat napit lataavat laitteelle valitun merialueen merikartan sekä väylät, merimerkit ja nopeusrajoitusalueet. Alueet ladataan erikseen. Reitti kulkee alueelta toiselle, kun vierekkäiset alueet on ladattu (Suomenlahti–Saaristomeri–Selkämeri). Merikartan katsotut alueet tallentuvat laitteelle myös itsestään; kartalla näkyvän alueen saat talteen kartan tasonapista (alin pyöreä nappi).<span id="karttaTila"></span></div><div class="napit">' + alueNapit() + '<button class="nappi vaara" data-a="tyhjennaKartat">Poista tallennetut kartat</button></div></div>' +
+    '<div class="kortti"><h2>Kalapaikat (' + T.kalapaikat.length + ')</h2>' + (T.kalapaikat.length ? '<div class="plista">' + T.kalapaikat.map(k => '<div class="rivi" data-a="kalapaikkaAvaa" data-id="' + k.id + '"><div class="v"><b>' + e(k.nimi) + '</b><span class="pieni">' + (k.lajit ? e(k.lajit) + ' · ' : '') + koord(k.lat, k.lon) + '</span></div><span class="pieni">Avaa</span></div>').join('') + '</div>'
+      : '<div class="pieni">Ei vielä kalapaikkoja. Lisää paikka kartan kalanapista: omaan sijaintiin tai napauttamalla karttaa. Paikat näkyvät kartalla kalan kuvana, ja ne tallentuvat vain tälle laitteelle ja varmuuskopioon.</div>') + '</div>' +
     '<div class="kortti"><h2>Syvyyskäyrät</h2><div class="pieni">Merikartan syvyyskäyrät (3, 6, 10, 20 metriä ja muut kartoitetut syvyydet) omana karttatasonaan, josta matalikot, penkat ja syvänteiden reunat erottuvat selvästi. Käyrät ladataan alueittain laitteelle, minkä jälkeen ne näkyvät ilman verkkoa. Näkyviin ne kytketään kartan tasonapista kohdasta Syvyyskäyrät.</div>' +
     ALUEET.map(a => '<div class="rivi" data-a="syvyysLataa" data-id="' + a.id + '"><div class="v"><b>' + a.nimi + '</b><span class="pieni" id="syvTila-' + a.id + '">Ei ladattu</span></div><span class="pieni">Lataa</span></div>').join('') +
     '<div class="napit"><button class="nappi vaara pien" data-a="syvyysPoista">Poista ladatut syvyyskäyrät</button></div>' +
@@ -787,6 +790,7 @@ const A = {
       '<label class="cb"><input type="checkbox" id="kKall"' + (T.as.kallistus ? ' checked' : '') + '>Näytä kallistusmittari kartalla</label>' +
       '<label class="cb"><input type="checkbox" id="kSuuntaviiva"' + (T.as.suuntaviiva ? ' checked' : '') + '>Veneen suuntaviiva</label>' +
       '<div class="pieni" id="kSuuntaTila">' + (!paikkaTuore() ? 'Suuntaviiva näkyy, kun GPS on päällä ja vene liikkuu.' : kulku == null ? 'Kulkusuuntaa ei vielä tiedetä: viiva ilmestyy, kun vene on liikkunut noin 10 metriä.' : 'Kulkusuunta nyt ' + Math.round(kulku) + '° ' + ilmansuunta(kulku) + '.') + '</div>' +
+      '<label class="cb"><input type="checkbox" id="kKalat"' + (T.as.kalapaikat ? ' checked' : '') + '>Omat kalapaikat</label>' +
       '<label class="cb"><input type="checkbox" id="kSyvyys"' + (T.as.syvyys ? ' checked' : '') + '>Syvyyskäyrät</label><div class="pieni" id="kSyvyysTila"></div>' +
       '<label class="cb"><input type="checkbox" id="kSeur"' + (T.as.reittiSeuranta ? ' checked' : '') + '>Seuraa reittiä ajon aikana</label>' +
       '<label>Varoita, kun vene on sivussa reitistä<select id="kSivu">' + [[100, 'yli 100 m'], [200, 'yli 200 m'], [500, 'yli 500 m'], [0, 'ei varoitusta']].map(x => '<option value="' + x[0] + '"' + (x[0] === T.as.reittiSivu ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
@@ -798,6 +802,7 @@ const A = {
     d.querySelectorAll('[data-lisa]').forEach(el => el.onchange = async () => { T.as[el.dataset.lisa] = el.checked; await talletaT(); if (kLive) kLive.piirra(); lisatPaivita(); });
     d.querySelector('#kKall').onchange = async ev => { T.as.kallistus = ev.target.checked && await kallPaalle(); if (!T.as.kallistus) kallPois(); ev.target.checked = T.as.kallistus; await talletaT(); paivitaKall(true); };
     d.querySelector('#kSuuntaviiva').onchange = async ev => { T.as.suuntaviiva = ev.target.checked; await talletaT(); karttaUudelleen(); };
+    d.querySelector('#kKalat').onchange = async ev => { T.as.kalapaikat = ev.target.checked; await talletaT(); karttaUudelleen(); };
     const syvTila = async () => { await syvyysMuistiin(); const el = d.querySelector('#kSyvyysTila'); if (el) el.textContent = Object.keys(syv.osat).length ? 'Näkyvät, kun kartta on lähennetty. Punainen 3 m, oranssi 6 m, sininen 7–10 m, tummansininen sitä syvemmät. Ei navigointiin.' : 'Syvyyskäyriä ei ole vielä ladattu. Lataa ne Lisää-sivun kohdasta Syvyyskäyrät.'; };
     syvTila();
     d.querySelector('#kSyvyys').onchange = async ev => { T.as.syvyys = ev.target.checked; await talletaT(); await syvTila(); karttaUudelleen(); };
@@ -1123,7 +1128,7 @@ function valitsePaikka(otsikko, cb, o) {
   o = o || {}; const d = $('#dlg');
   const rivi = (p, lisa) => '<div class="rivi" data-i="' + lista.push(p) + '"><div class="v"><b>' + e(p.nimi) + '</b><span class="pieni">' + e(lisa) + '</span></div></div>';
   let lista = [];
-  const oletus = () => { lista = []; return (o.sijainti ? rivi({ sijainti: true, nimi: 'Nykyinen sijainti' }, paikkaNyt() ? koord(...paikkaNyt()) : 'sijaintia ei vielä ole') : '') + (T.koti && !o.eiKotia ? rivi(T.koti, 'Kotisatama') : '') + T.paikat.filter(p => !T.koti || p.nimi !== T.koti.nimi).map(p => rivi({ nimi: p.nimi, lat: p.lat, lon: p.lon }, 'Oma paikka')).join('') + lahiSatamat(); };
+  const oletus = () => { lista = []; return (o.sijainti ? rivi({ sijainti: true, nimi: 'Nykyinen sijainti' }, paikkaNyt() ? koord(...paikkaNyt()) : 'sijaintia ei vielä ole') : '') + (T.koti && !o.eiKotia ? rivi(T.koti, 'Kotisatama') : '') + T.paikat.filter(p => !T.koti || p.nimi !== T.koti.nimi).map(p => rivi({ nimi: p.nimi, lat: p.lat, lon: p.lon }, 'Oma paikka')).join('') + T.kalapaikat.map(k => rivi({ nimi: k.nimi, lat: k.lat, lon: k.lon }, 'Kalapaikka' + (k.lajit ? ': ' + k.lajit : ''))).join('') + lahiSatamat(); };
   // Satamat sovelluksen mukana tulevasta tai laitteelle päivitetystä satamaluettelosta: löytyvät nimellä myös ilman verkkoa.
   const satamaLista = () => ((lisa.satamat || (typeof SATAMAT_PAKETTI !== 'undefined' ? SATAMAT_PAKETTI : null) || { lista: [] }).lista).filter(s => s.n);
   const satamaLaji = s => (s.l === 'satama' ? 'Satama' : s.l === 'polttoaine' ? 'Polttoaineasema' : 'Veneilyn palvelu') + (s.t && s.t['addr:city'] ? ', ' + s.t['addr:city'] : '');
@@ -1141,6 +1146,7 @@ function valitsePaikka(otsikko, cb, o) {
     const q = d.querySelector('#pHaku').value.trim(), el = d.querySelector('#pLista'); if (q.length < 2) return;
     lista = []; const pieni = q.toLowerCase();
     let h = T.paikat.filter(p => p.nimi.toLowerCase().includes(pieni)).map(p => rivi({ nimi: p.nimi, lat: p.lat, lon: p.lon }, 'Oma paikka')).join('');
+    h += T.kalapaikat.filter(k => (k.nimi + ' ' + (k.lajit || '')).toLowerCase().includes(pieni)).map(k => rivi({ nimi: k.nimi, lat: k.lat, lon: k.lon }, 'Kalapaikka' + (k.lajit ? ': ' + k.lajit : ''))).join('');
     // satamat: nimen alusta osuvat ensin, sitten lähimmät
     const tama = paikkaNyt(), osuvat = satamaLista().filter(x => x.n.toLowerCase().includes(pieni) || (x.t && (x.t['addr:city'] || '').toLowerCase().includes(pieni)));
     h += osuvat.map(x => [(x.n.toLowerCase().startsWith(pieni) ? 0 : 1e7) + (x.l === 'satama' ? 0 : 5e6) + (tama ? etaisyys(tama[0], tama[1], x.la, x.lo) : 0), x]).sort((a, b) => a[0] - b[0]).slice(0, 8).map(([, x]) => rivi({ nimi: x.n, lat: x.la, lon: x.lo }, satamaLaji(x) + (tama ? ' · ' + n(etaisyys(tama[0], tama[1], x.la, x.lo) / MPK) + ' mpk täältä' : ''))).join('');
@@ -1395,6 +1401,16 @@ function piirraLisat(c, X, Y, W, H, z) {
     if (z >= 12 && s.n) teksti(s.n, x, y + r + 3, 12, '#0f2a43');
     lisa.osumat.push({ x, y, r: r + 12, laji: 'satama', d: s });
   }
+  // Omat kalapaikat: kalan kuva ympyrässä. Napautus avaa paikan tiedot.
+  if (T.as.kalapaikat && z >= 7.5) for (const k of T.kalapaikat) {
+    const x = X(k.lon), y = Y(k.lat); if (!sisalla(x, y)) continue;
+    c.beginPath(); c.arc(x, y, 14, 0, 7); c.fillStyle = '#0b7a8f'; c.fill(); c.lineWidth = 2.5; c.strokeStyle = '#fff'; c.stroke();
+    c.fillStyle = '#fff'; c.beginPath(); c.ellipse(x - 2, y, 7, 4.2, 0, 0, 7); c.fill();
+    c.beginPath(); c.moveTo(x + 3.5, y); c.lineTo(x + 9.5, y - 4.6); c.lineTo(x + 9.5, y + 4.6); c.closePath(); c.fill();
+    c.beginPath(); c.arc(x - 5.2, y - 1, 1.1, 0, 7); c.fillStyle = '#0b7a8f'; c.fill();
+    if (z >= 12 && k.nimi) teksti(k.nimi, x, y + 16, 12, '#075565');
+    lisa.osumat.push({ x, y, r: 26, laji: 'kala', d: k });
+  }
   const ra = T.as.rajoitus && vayla && vayla.rajoitukset;
   if (ra && z >= 10) {
     const lo0 = lonX(mx(lv.lon, z) - W / 2, z), lo1 = lonX(mx(lv.lon, z) + W / 2, z), la1 = latY(my(lv.lat, z) - H / 2, z), la0 = latY(my(lv.lat, z) + H / 2, z), nyt = Date.now();
@@ -1477,10 +1493,50 @@ function aisIkkuna(a) {
 // Kartan napautus: avaa lähimmän sataman tai aluksen tiedot.
 function karttaNapautus(x, y) {
   let paras = null, pd = Infinity; for (const o of lisa.osumat) { const d = Math.hypot(o.x - x, o.y - y); if (d <= o.r && d < pd) { pd = d; paras = o; } }
-  if (paras) (paras.laji === 'ais' ? aisIkkuna : satamaIkkuna)(paras.d);
+  if (paras) (paras.laji === 'ais' ? aisIkkuna : paras.laji === 'kala' ? kalapaikkaIkkuna : satamaIkkuna)(paras.d);
 }
 Object.assign(A, { aisNyt() { if (!navigator.onLine) { ilmoita('Ei verkkoyhteyttä.'); return; } lisa.aisAika = 0; aisHae(); }, satamatPaivita() { satamatHae(true); }, tuuliAika() { lisa.tunti = (lisa.tunti + 1) % TUNNIT.length; if (kLive) kLive.piirra(); } });
 setInterval(() => { if (typeof T !== 'undefined' && T && nakyma === 'kartta') lisatPaivita(); }, 60000);
+
+// ---------- omat kalapaikat ----------
+// T.kalapaikat = [{id, nimi, lajit, huom, lat, lon, luotu}]. Kartalla kalan kuva ympyrässä; napautus avaa ikkunan, jossa nimi, lajit ja tarkempi kuvaus.
+// k = olemassa oleva paikka (muokkaus) tai tyhjä (uusi: paikaksi oma sijainti tai kartalta napautettu kohta).
+function kalapaikkaIkkuna(k) {
+  const d = $('#dlg'), s = paikkaNyt(), on = !!(k && k.id);
+  d.innerHTML = '<form method="dialog"><h3>' + (on ? 'Kalapaikka' : 'Uusi kalapaikka') + '</h3>' +
+    '<label>Nimi<input id="kpNimi" autocomplete="off" placeholder="esim. Ahvenkari" value="' + e(on ? k.nimi : '') + '"></label>' +
+    '<label>Kalalajit<input id="kpLajit" autocomplete="off" placeholder="esim. ahven, kuha" value="' + e(on ? k.lajit : '') + '"></label>' +
+    '<label>Tarkempi kuvaus<textarea id="kpHuom" rows="6" placeholder="Syvyys, pohjan laatu, vieheet, vuodenaika ja kellonaika, ankkurointi, saaliit…">' + e(on ? k.huom : '') + '</textarea></label>' +
+    (on ? '<div class="pieni">' + koord(k.lat, k.lon) + ' · lisätty ' + pvm(k.luotu) + (s ? ' · ' + n(etaisyys(s[0], s[1], k.lat, k.lon) / MPK) + ' mpk täältä' : '') + '</div>' +
+      '<button type="button" class="nappi" id="kpReitti">Reitti tänne</button><button type="button" class="nappi" id="kpSiirra">Siirrä: valitse uusi paikka kartalta</button>' +
+      '<div class="napit"><button type="button" class="nappi vaara" id="kpPoista">Poista</button><button type="button" class="nappi" id="kpSulje">Sulje</button><button type="button" class="nappi paa" id="kpTallenna">Tallenna</button></div>'
+      : '<div class="pieni">' + (s ? 'Oma sijainti: ' + koord(s[0], s[1]) + (gps.viime && watchId != null ? ' (±' + Math.round(gps.viime.acc || 0) + ' m)' : ' (viimeisin tunnettu)') : 'Omaa sijaintia ei ole – valitse paikka kartalta tai käynnistä GPS.') + '</div>' +
+      '<button type="button" class="nappi paa" id="kpTassa"' + (s ? '' : ' disabled') + '>Tallenna omaan sijaintiin</button><button type="button" class="nappi" id="kpKartta">Valitse paikka kartalta</button>' +
+      '<div class="napit"><button type="button" class="nappi" id="kpSulje">Peruuta</button></div>') + '</form>';
+  const lue = () => ({ nimi: d.querySelector('#kpNimi').value.trim() || 'Kalapaikka ' + (T.kalapaikat.length + (on ? 0 : 1)), lajit: d.querySelector('#kpLajit').value.trim(), huom: d.querySelector('#kpHuom').value.trim() });
+  const kartalta = (ohje, cb) => { d.close(); nakyma = 'kartta'; piirra(); ilmoita(ohje); napautusCb = async (la, lo) => { napautusCb = null; await cb(+la.toFixed(6), +lo.toFixed(6)); piirra(); }; };
+  d.querySelector('#kpSulje').onclick = () => d.close();
+  if (!on) {
+    const uusi = async (o, la, lo) => { const x = Object.assign({ id: uusiId(), lat: +la.toFixed(6), lon: +lo.toFixed(6), luotu: Date.now() }, o); T.kalapaikat.push(x); await talletaT(); ilmoita('Kalapaikka tallennettu: ' + x.nimi); };
+    d.querySelector('#kpTassa').onclick = async () => { const o = lue(); d.close(); await uusi(o, s[0], s[1]); piirra(); };
+    d.querySelector('#kpKartta').onclick = () => { const o = lue(); kartalta('Napauta kalapaikan kohtaa kartalla.', (la, lo) => uusi(o, la, lo)); };
+  } else {
+    d.querySelector('#kpTallenna').onclick = async () => { Object.assign(k, lue()); d.close(); await talletaT(); ilmoita('Kalapaikka tallennettu.'); piirra(); };
+    d.querySelector('#kpPoista').onclick = async () => { if (!confirm('Poistetaanko kalapaikka ' + k.nimi + ' pysyvästi?')) return; T.kalapaikat = T.kalapaikat.filter(x => x !== k); d.close(); await talletaT(); ilmoita('Kalapaikka poistettu.'); piirra(); };
+    d.querySelector('#kpSiirra').onclick = () => { Object.assign(k, lue()); kartalta('Napauta kalapaikan uutta kohtaa kartalla.', async (la, lo) => { k.lat = la; k.lon = lo; await talletaT(); ilmoita('Kalapaikka siirretty.'); }); };
+    d.querySelector('#kpReitti').onclick = async () => {
+      Object.assign(k, lue()); await talletaT(); d.close();
+      rs.minne = { nimi: k.nimi, lat: k.lat, lon: k.lon }; rs.mista = { sijainti: true, nimi: 'Nykyinen sijainti' };
+      if (!paikkaNyt() || !await vaylaverkko()) { reittiIkkuna(); return; }
+      if (await laskeReitti()) naytaReitti();
+    };
+  }
+  d.showModal();
+}
+Object.assign(A, {
+  kalapaikka() { kalapaikkaIkkuna(null); },
+  kalapaikkaAvaa(id) { const k = T.kalapaikat.find(x => x.id === id); if (k) kalapaikkaIkkuna(k); }
+});
 
 // ---------- syvyyskäyrät (Traficomin merikartta-aineisto) ----------
 // Käyrät haetaan Traficomin WFS-rajapinnasta alueittain pienissä ruuduissa, yksinkertaistetaan noin 4 metrin tarkkuuteen ja tallennetaan
