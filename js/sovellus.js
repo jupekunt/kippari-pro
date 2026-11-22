@@ -464,7 +464,11 @@ async function lataaLaatat(lista, edistys, tila) {
         if (await DB.onko('laatat', avain)) ennestaan++;
         else { const b = await haeKuva(K.url(z, x, y), 4, true); if (b) { await DB.put('laatat', b, avain); ok++; } else puuttuu++; }
         const S = K.paalle, sa = 'satama/' + z + '/' + x + '/' + y;       // tarkimmilla tasoilla myös satamakartta
-        if (z >= S.minZ && !(await DB.onko('laatat', sa))) { const b = await haeKuva(S.url(z, x, y), 4, true); if (b) await DB.put('laatat', b, sa); }
+        if (z >= S.minZ && !(await DB.onko('laatat', sa))) {
+          // tasolla 15 satamakartta haetaan vain, jos tason 14 emopalassa on karttaa: satamakarttoja on vain pienillä alueilla
+          const emo = z > S.minZ ? await DB.get('laatat', 'satama/' + (z - 1) + '/' + (x >> 1) + '/' + (y >> 1)) : null;
+          if (z === S.minZ || (emo && emo.size > TYHJA_PALA) || tila.kaikkiSatamat) { const b = await haeKuva(S.url(z, x, y), 4, true); if (b) await DB.put('laatat', b, sa); }
+        }
       } catch (x) { puuttuu++; if (x && x.name === 'QuotaExceededError') { tila.taynna = true; tila.peru = true; } }
       edistys(ok + ennestaan + puuttuu, lista.length);
     }
@@ -643,13 +647,37 @@ const ALUEET = [
 ];
 const SUOMENLAHTI = ALUEET[0].b;
 const alueNapit = luokka => ALUEET.map(a => '<button' + (luokka === 'dlg' ? ' type="button" class="nappi"' : ' class="nappi' + (a === ALUEET[0] ? ' paa' : '') + '" data-a="lataaKokoAlue" data-id="' + a.id + '"') + ' data-alue="' + a.id + '">Lataa ' + a.nimi + ': kartta ja väylätiedot</button>').join('');
+// Tarkat tasot (14 ja 15) koko alueelta vain sieltä, missä kartassa on sisältöä: noin kaksi kolmasosaa paloista on tyhjää avomerta tai maata,
+// ja tyhjän palan tunnistaa tiedoston koosta. Taso kerrallaan: ladataan niiden palojen neljä alipalaa, joissa on karttaa.
+const TYHJA_PALA = 1500;      // tavua: tätä pienempi kuva on tyhjä (tyhjä pala on noin 800 tavua)
+async function lataaTarkat(b, maxZ, edistys, tila) {
+  let emot = laattaLista(b, 13, 13); const yht = { ok: 0, ennestaan: 0, puuttuu: 0 };
+  for (let z = 14; z <= maxZ && !tila.peru; z++) {
+    const lista = [];
+    for (let i = 0; i < emot.length && !tila.peru; i += 24) {
+      const koot = await Promise.all(emot.slice(i, i + 24).map(t => DB.get('laatat', 'meri/' + t[0] + '/' + t[1] + '/' + t[2]).then(k => k ? k.size : 0, () => 0)));
+      koot.forEach((koko, j) => { if (koko > TYHJA_PALA) { const t = emot[i + j]; for (const dx of [0, 1]) for (const dy of [0, 1]) lista.push([z, t[1] * 2 + dx, t[2] * 2 + dy]); } });
+    }
+    if (!lista.length) break;
+    const r = await lataaLaatat(lista, (k, kaikki) => edistys(z, k, kaikki), tila);
+    yht.ok += r.ok; yht.ennestaan += r.ennestaan; yht.puuttuu += r.puuttuu; emot = lista;
+  }
+  return yht;
+}
 async function lataaAlueKokoIkkuna(alue) {
   if (!navigator.onLine) { ilmoita('Lataus vaatii verkkoyhteyden.'); return; }
   const lista = laattaLista(alue.b, 8, 13), mt = Math.round(lista.length * LAATTAKOKO / 10) * 10, d = $('#dlg'), tila = { peru: false };
   const min = k => Math.max(5, Math.round(lista.length / 9348 * k / 5) * 5);
+  // arvio tarkkojen tasojen määrästä: Suomenlahden otannassa noin kolmasosassa tason 13 paloista oli karttasisältöä
+  const n13 = laattaLista(alue.b, 13, 13).length, e14 = Math.round(n13 * 0.33 * 4 / 100) * 100, e15 = Math.round(e14 * 4 * 0.85 / 100) * 100, sata = x => Math.max(10, Math.round(x / 10) * 10);
+  const tarkkuudet = [[13, 'Perus', 'väylät, syvyydet ja merimerkit erottuvat', ''],
+    [14, 'Tarkka', 'lisäksi tarkempi taso rannikolta, saaristosta ja väyliltä', 'noin ' + e14 + ' palaa lisää, arviolta ' + sata(e14 * 0.018) + ' Mt'],
+    [15, 'Tarkin', 'kartan tarkin taso ja satamakartat rannikolta, saaristosta ja väyliltä', 'noin ' + (e14 + e15) + ' palaa lisää, arviolta ' + sata(e14 * 0.018 + e15 * 0.009) + ' Mt ja ' + (e14 + e15 < 22000 ? 'alle tunti' : '1–2 tuntia')]];
   let tilaa = '';
   try { const s = await navigator.storage.estimate(); if (s && s.quota) { const vapaa = (s.quota - (s.usage || 0)) / 1048576; tilaa = ' Selain antaa sovellukselle tilaa vielä noin ' + (vapaa > 2000 ? n(vapaa / 1024, 1) + ' Gt' : Math.round(vapaa) + ' Mt') + '.' + (vapaa < mt ? ' <b>Se ei ehkä riitä koko lataukseen.</b>' : ''); } } catch (x) { }
   d.innerHTML = '<form method="dialog"><h3>Lataa kartta ja väylätiedot: ' + alue.nimi + '</h3><div class="pieni">Merikartta ' + alue.kuvaus + ' tarkkuudella, jolla väylät, syvyydet ja merimerkit erottuvat. ' + lista.length + ' karttapalaa, arviolta ' + mt + ' Mt ja ' + min(15) + '–' + min(40) + ' minuuttia.' + tilaa + '</div>' +
+    '<h4>Kartan tarkkuus</h4>' + tarkkuudet.map(t => '<label class="cb"><input type="radio" name="tark" value="' + t[0] + '"' + (t[0] === 13 ? ' checked' : '') + '><span><b>' + t[1] + '</b> – ' + t[2] + (t[3] ? '<br><span class="pieni">' + t[3] + '</span>' : '') + '</span></label>').join('') +
+    '<div class="pieni">Perustarkkuudella kartta ei tarkennu ilman verkkoa, kun zoomaat lähelle. Tarkat tasot ladataan vain sieltä, missä kartassa on sisältöä; avomeri jää perustarkkuuteen. Tarkemman tason voi ladata myöhemmin samasta napista – jo ladatut palat ohitetaan.</div>' +
     '<div class="pieni">Samalla ladataan alueen väylät, merimerkit ja nopeusrajoitusalueet (noin ' + alue.vaylaMt + ' Mt), jolloin myös reittisuunnittelu, reitin seuranta ja rajoitusvaroitukset toimivat ilman verkkoa.</div>' +
     '<div class="pieni">Käytä Wi-Fiä ja pidä sovellus auki latauksen ajan. Jos lataus keskeytyy, paina samaa nappia uudelleen – jo ladatut palat ohitetaan.</div>' +
     '<progress id="lEd" value="0" max="1" hidden></progress><div class="pieni" id="lTeksti"></div>' +
@@ -657,7 +685,8 @@ async function lataaAlueKokoIkkuna(alue) {
   d.querySelector('#lPeru').onclick = () => { tila.peru = true; d.close(); };
   d.querySelector('#lOk').onclick = async () => {
     const ed = d.querySelector('#lEd'), tx = d.querySelector('#lTeksti');
-    d.querySelector('#lOk').disabled = true; d.querySelector('#lPeru').textContent = 'Keskeytä'; ed.hidden = false;
+    const maxZ = +((d.querySelector('input[name=tark]:checked') || {}).value || 13);
+    d.querySelector('#lOk').disabled = true; d.querySelectorAll('input[name=tark]').forEach(x => x.disabled = true); d.querySelector('#lPeru').textContent = 'Keskeytä'; ed.hidden = false;
     try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (x) { }
     naytto(true);
     // 1) väylätiedot: haetaan, jos niitä ei ole tai ne ovat yli vuorokauden vanhat (keskeytyneen latauksen jatko ei hae niitä turhaan uudelleen)
@@ -669,10 +698,13 @@ async function lataaAlueKokoIkkuna(alue) {
     window.__vt = vt;
     // 2) karttapalat
     const r = tila.peru ? { ok: 0, ennestaan: 0, puuttuu: 0 } : await lataaLaatat(lista, (k, kaikki) => { ed.value = k / kaikki; tx.textContent = k + ' / ' + kaikki + ' palaa (' + Math.round(k / kaikki * 100) + ' %)'; }, tila);
+    // 3) tarkat tasot sieltä, missä kartassa on sisältöä
+    const rt = !tila.peru && maxZ > 13 ? await lataaTarkat(alue.b, maxZ, (z, k, kaikki) => { ed.value = k / kaikki; tx.textContent = 'Tarkka taso ' + (z - 13) + ' / ' + (maxZ - 13) + ': ' + k + ' / ' + kaikki + ' palaa (' + Math.round(k / kaikki * 100) + ' %)'; }, tila) : null;
     if (watchId == null) naytto(false);
     if (!d.contains(tx)) { karttaUudelleen(); return; }      // ikkuna on jo korvattu toisella
+    if (rt) { r.ok += rt.ok; r.ennestaan += rt.ennestaan; r.puuttuu += rt.puuttuu; }
     tx.textContent = vt + 'Kartta: ' + (tila.taynna ? 'Puhelimen tallennustila loppui kesken. ' : tila.peru ? 'Keskeytetty – jatka painamalla nappia uudelleen. ' : 'Valmis. ') + 'Ladattu ' + r.ok + ', ennestään tallessa ' + r.ennestaan + (r.puuttuu ? ', ei saatavilla ' + r.puuttuu + ' (ei karttaa alueelta tai yhteys katkesi)' : '') + '.';
-    d.querySelector('#lPeru').textContent = 'Sulje'; d.querySelector('#lOk').disabled = false; tila.peru = false; karttaUudelleen(); paivitaKarttaTila();
+    d.querySelector('#lPeru').textContent = 'Sulje'; d.querySelector('#lOk').disabled = false; d.querySelectorAll('input[name=tark]').forEach(x => x.disabled = false); tila.peru = false; karttaUudelleen(); paivitaKarttaTila();
   };
   d.showModal();
 }
