@@ -23,7 +23,7 @@ const KULULAJIT = ['Satama ja laituri', 'Huolto ja varaosat', 'Varusteet', 'Vaku
 function uusiTila() {
   return { vene: { nimi: '', tunnit0: 0, mpk0: 0, syvays: null, nopeus: 10 }, koti: null, reitit: [], paikat: [], tankkaukset: [], kulut: [],
     huollot: HUOLLOT.map((h, i) => ({ id: 'h' + i, nimi: h[0], valiH: h[1], valiKk: h[2], tehtyPvm: null, tehtyH: null })),
-    as: { auto: true, pysMin: 15, seuranta: false, kartta: 'meri', yksikko: 'kn', kallistus: false, kallNolla: null, rajoitus: true, reittiSeuranta: true, reittiSivu: 200, tuuli: false, ais: false, satamat: false }, saajono: [], kopio: null };
+    as: { auto: true, pysMin: 15, seuranta: false, kartta: 'meri', yksikko: 'kn', kallistus: false, kallNolla: null, rajoitus: true, reittiSeuranta: true, reittiSivu: 200, suuntaviiva: true, tuuli: false, ais: false, satamat: false }, saajono: [], kopio: null };
 }
 
 // ---------- tallennus ----------
@@ -231,13 +231,13 @@ function nMatka() {
 }
 // Päänäkymä: koko ruudun kartta. Päällä nopeus ja kulkusuunta, kartan napit ja tallennuksen tila.
 function nKartta() {
-  return '<div class="kokok' + (reitti ? ' onreitti' : '') + '"><canvas class="kartta taysi" id="lKartta"></canvas>' +
+  return '<div class="kokok' + (reitti || omaR ? ' onreitti' : '') + '"><canvas class="kartta taysi" id="lKartta"></canvas>' +
     '<div class="kyla"><div class="kmittari"><div class="knop"><b id="kNopeus">–</b><span>' + NY() + '</span></div><div class="ksuu"><b id="kSuunta">–</b><span id="kIlmans"></span></div><div class="kraj" id="kRaja" data-a="rajoitusTiedot" hidden><i id="kRajaLuku"></i><span id="kRajaS"></span></div><div class="kkal" id="kKalRivi" hidden><i id="kKalViiva"></i><b id="kKal">–</b><span id="kKalS"></span></div></div><button class="ktuuli" id="kTuuli" data-a="tuuliAika" hidden title="Vaihda ennusteen ajankohtaa"><b></b><span></span></button></div>' +
     '<div class="knapit"><button data-a="keskita" id="lKarttaK" aria-label="Keskitä veneeseen" title="Keskitä veneeseen">' + KESKITA + '</button>' +
     '<button data-a="zoom" data-id="1" aria-label="Lähennä">+</button><button data-a="zoom" data-id="-1" aria-label="Loitonna">−</button>' +
     '<button data-a="reitti" aria-label="Reittisuunnittelu" title="Reittisuunnittelu"><svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H14a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h5.5"/></svg></button>' +
     '<button data-a="kartat" aria-label="Karttapohja ja lataus" title="Karttapohja ja lataus"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5zM3 12l9 5 9-5M3 16l9 5 9-5"/></svg></button></div>' +
-    '<button class="kais" id="kAis" data-a="aisNyt" hidden title="Päivitä AIS-tiedot nyt"></button><button class="ktila" id="kTila" data-a="matkaSivu"></button>' + reittiPalkki() + '<div class="ktekija">' + kartta().tekija + '</div></div>';
+    '<button class="kais" id="kAis" data-a="aisNyt" hidden title="Päivitä AIS-tiedot nyt"></button><button class="ktila" id="kTila" data-a="matkaSivu"></button>' + (omaR ? omaPalkki() : reittiPalkki()) + '<div class="ktekija">' + kartta().tekija + '</div></div>';
 }
 function paivitaLive() {
   const f = gps.viime, m = tal.m, matkalla = tal.tila === 'matka', paalla = watchId != null;
@@ -571,6 +571,13 @@ class Kartta {
     if (this.lisat) { this.lisat(c, X, Y, W, H, v.z); lisatAjasta(); }
     const b = this.vene;
     if (!b) { if (pts.length) piste(pts[pts.length - 1], '#c0392b'); return; }
+    // Suuntaviiva: punainen katkoviiva veneen keulasta kulkusuuntaan ruudun reunaan asti. Näytetään vain, kun sijainti on tuore ja kulkusuunta tiedossa.
+    const viiva = !!(this.suuntaviiva && b.suunta != null && !b.himmea); cv.dataset.suuntaviiva = viiva ? '1' : '0';
+    if (viiva) {
+      const x0 = X(b.lon), y0 = Y(b.lat), pit = Math.hypot(W, H), dx = Math.sin(b.suunta * RAD), dy = -Math.cos(b.suunta * RAD);
+      for (const [w, vari, katko] of [[7.5, 'rgba(255,255,255,.9)', []], [3.6, '#e01b24', [13, 9]]]) { c.setLineDash(katko); c.lineCap = 'butt'; c.lineWidth = w; c.strokeStyle = vari; c.beginPath(); c.moveTo(x0 + dx * 20, y0 + dy * 20); c.lineTo(x0 + dx * pit, y0 + dy * pit); c.stroke(); }
+      c.setLineDash([]); c.lineCap = 'round';
+    }
     // Oma vene ylhäältä päin, keula kulkusuuntaan.
     c.save(); c.translate(X(b.lon), Y(b.lat)); c.rotate((b.suunta || 0) * RAD);
     c.beginPath(); c.moveTo(0, -19); c.bezierCurveTo(10, -9, 10, 5, 8, 15); c.lineTo(-8, 15); c.bezierCurveTo(-10, 5, -10, -9, 0, -19); c.closePath();
@@ -589,7 +596,7 @@ function karttaUudelleen() {
 function liveKartta() {
   const cv = $('#lKartta'); if (!cv) return;
   if (!kLive || kLive.cv !== cv) { kLive = new Kartta(cv, lv); kLive.onMuutos = seuraaMerkki; lk = null; }
-  kLive.reitti = reitti ? reitti.r.pisteet : null; kLive.lisat = piirraLisat; kLive.reittiKohta = seurPaalla() && seur.aktiivinen ? seur.k : null;
+  kLive.reitti = reitti && !omaR ? reitti.r.pisteet : null; kLive.lisat = piirraLisat; kLive.suuntaviiva = T.as.suuntaviiva; kLive.reittiKohta = !omaR && seurPaalla() && seur.aktiivinen ? seur.k : null;      // omaa reittiä muokatessa näytetään vain muokattava reitti
   const f = gps.viime, paalla = watchId != null || tal.tila === 'matka';
   if (!f || !paalla) {            // ei sijaintia juuri nyt: viimeisin tunnettu paikka, muuten Suomenlahti
     if (lk) return; lk = { tyhja: true };
@@ -774,6 +781,7 @@ const A = {
     d.innerHTML = '<form method="dialog"><h3>Kartta</h3><label>Karttapohja<select id="kPohja">' + ['meri', 'maa'].map(k => '<option value="' + k + '"' + (KARTAT[k] === kartta() ? ' selected' : '') + '>' + KARTAT[k].nimi + '</option>').join('') + '</select></label>' +
       [["tuuli","Tuuli ja sää","Tuulinuolet, puuskat, lämpötila ja aallonkorkeus kartalla; ennuste 24 tuntia eteenpäin."],["ais","Muut alukset (AIS)","Lähialueen alukset kartalla. Päivittyy noin minuutin välein."],["satamat","Satamat ja polttoaineasemat","Venesatamat palvelutietoineen. Haetaan kerran ja jää talteen."]].map(k => '<label class="cb"><input type="checkbox" data-lisa="' + k[0] + '"' + (T.as[k[0]] ? ' checked' : '') + '>' + k[1] + '</label>').join('') +
       '<label class="cb"><input type="checkbox" id="kKall"' + (T.as.kallistus ? ' checked' : '') + '>Näytä kallistusmittari kartalla</label>' +
+      '<label class="cb"><input type="checkbox" id="kSuuntaviiva"' + (T.as.suuntaviiva ? ' checked' : '') + '>Veneen suuntaviiva (punainen katkoviiva kulkusuuntaan)</label>' +
       '<label class="cb"><input type="checkbox" id="kSeur"' + (T.as.reittiSeuranta ? ' checked' : '') + '>Seuraa reittiä ajon aikana</label>' +
       '<label>Varoita, kun vene on sivussa reitistä<select id="kSivu">' + [[100, 'yli 100 m'], [200, 'yli 200 m'], [500, 'yli 500 m'], [0, 'ei varoitusta']].map(x => '<option value="' + x[0] + '"' + (x[0] === T.as.reittiSivu ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
       '<div class="pieni">Seuranta näyttää kartalla olevasta reitistä jäljellä olevan matkan, arvioidun tuloajan ja seuraavan käännöksen. Se tarvitsee sijainnin, eli seurannan pitää olla päällä Matka-välilehdellä.</div>' +
@@ -783,6 +791,7 @@ const A = {
     d.querySelector('#kPohja').onchange = async ev => { T.as.kartta = ev.target.value; await talletaT(); piirra(); };
     d.querySelectorAll('[data-lisa]').forEach(el => el.onchange = async () => { T.as[el.dataset.lisa] = el.checked; await talletaT(); if (kLive) kLive.piirra(); lisatPaivita(); });
     d.querySelector('#kKall').onchange = async ev => { T.as.kallistus = ev.target.checked && await kallPaalle(); if (!T.as.kallistus) kallPois(); ev.target.checked = T.as.kallistus; await talletaT(); paivitaKall(true); };
+    d.querySelector('#kSuuntaviiva').onchange = async ev => { T.as.suuntaviiva = ev.target.checked; await talletaT(); karttaUudelleen(); };
     d.querySelector('#kSeur').onchange = async ev => {
       T.as.reittiSeuranta = ev.target.checked; await talletaT(); seurNollaa();
       if (T.as.reittiSeuranta && reitti && !paikkaTuore()) ilmoita('Reitin seuranta tarvitsee sijainnin. Käynnistä seuranta Matka-välilehdeltä.');
@@ -1006,6 +1015,96 @@ async function matkaReittina(id) {
   const mista = { nimi: paatepiste(m.mista, m.a), lat: a[0], lon: a[1] }, minne = { nimi: paatepiste(m.minne, m.b), lat: b[0], lon: b[1] };
   return { nimi: mista.nimi + ' – ' + minne.nimi + ' (' + pvm(m.alku) + ')', mista, minne, pisteet: litista(p) };
 }
+// ---------- oma reitti: pisteet napautetaan kartalle ----------
+// Vaiheet: 'alku' (lähtöpiste kartalta tai nimellä) -> 'loppu' (määränpää) -> 'vali' (välipisteiden lisäys, siirto ja poisto).
+// Valmis reitti on pisteviiva kuten lokista avattu jälki (reitti.jalki), lisäksi reitti.oma = true, jolloin sitä voi muokata uudelleen.
+let omaR = null;      // { p: [{lat, lon, nimi}], vaihe, valittu: pisteen indeksi | null, historia: [kumottavat tilat], id, nimi }
+const satamatNimetyt = () => ((lisa.satamat || (typeof SATAMAT_PAKETTI !== 'undefined' ? SATAMAT_PAKETTI : null) || { lista: [] }).lista).filter(x => x.n);
+// Pisteen nimi: oma paikka, alle 400 m päässä oleva satama tai koordinaatit.
+function pisteNimi(la, lo) {
+  const oma = paikkaNimi([la, lo]); if (oma) return oma;
+  let paras = null, pd = 400; for (const x of satamatNimetyt()) { const d = etaisyys(la, lo, x.la, x.lo); if (d < pd) { pd = d; paras = x; } }
+  return paras ? paras.n : koord(la, lo);
+}
+const omaMatka = () => { let d = 0; for (let i = 1; i < omaR.p.length; i++) d += etaisyys(omaR.p[i - 1].lat, omaR.p[i - 1].lon, omaR.p[i].lat, omaR.p[i].lon); return d; };
+const omaKuuntele = () => { napautusCb = (la, lo) => omaNapautus(la, lo); };
+function omaAloita(pohja) {
+  omaR = pohja || { p: [], vaihe: 'alku', valittu: null, historia: [] };
+  nakyma = 'kartta'; lv.seuraa = false; lv.alussa = false; omaKuuntele(); piirra();
+  if (!pohja) ilmoita('Napauta reitin lähtöpaikkaa kartalla tai hae se nimellä.');
+}
+// Lähtöpisteen tai määränpään asetus (kartalta tai nimihausta).
+function omaAseta(p) {
+  if (!omaR) return;
+  if (omaR.vaihe === 'alku') { omaR.p = [p]; omaR.vaihe = 'loppu'; ilmoita('Lähtö: ' + p.nimi + '. Napauta nyt määränpäätä tai hae se nimellä.'); }
+  else if (omaR.vaihe === 'loppu') { omaR.p.push(p); omaR.vaihe = 'vali'; ilmoita('Määränpää: ' + p.nimi + '. Lisää välipisteitä napauttamalla karttaa.'); }
+  omaKuuntele(); nakyma = 'kartta'; piirra();
+  if (omaR.vaihe === 'vali' && kLive) { kLive.sovita(omaR.p.map(q => [0, q.lat, q.lon])); kLive.piirra(); seuraaMerkki(); }
+}
+function omaNapautus(la, lo) {
+  if (!omaR) return; la = +la.toFixed(6); lo = +lo.toFixed(6);
+  if (omaR.vaihe !== 'vali') { omaAseta({ lat: la, lon: lo, nimi: pisteNimi(la, lo) }); return; }
+  const z = lv.z, px = q => [mx(q.lon, z), my(q.lat, z)], t = [mx(lo, z), my(la, z)];
+  // osuiko napautus olemassa olevaan pisteeseen? -> valinta päälle tai pois
+  let osuma = -1, pd = 26; omaR.p.forEach((q, i) => { const k = px(q), d = Math.hypot(k[0] - t[0], k[1] - t[1]); if (d < pd) { pd = d; osuma = i; } });
+  if (osuma >= 0) { omaR.valittu = omaR.valittu === osuma ? null : osuma; piirra(); return; }
+  omaR.historia.push(JSON.stringify(omaR.p)); if (omaR.historia.length > 40) omaR.historia.shift();
+  if (omaR.valittu != null) { const q = omaR.p[omaR.valittu]; q.lat = la; q.lon = lo; q.nimi = pisteNimi(la, lo); omaR.valittu = null; }      // valittu piste siirtyy napautettuun kohtaan
+  else {      // uusi välipiste siihen reitin osuuteen, jota napautus on lähinnä
+    let paras = 1, bd = Infinity;
+    for (let i = 1; i < omaR.p.length; i++) { const a = px(omaR.p[i - 1]), b = px(omaR.p[i]), dx = b[0] - a[0], dy = b[1] - a[1], u = Math.max(0, Math.min(1, ((t[0] - a[0]) * dx + (t[1] - a[1]) * dy) / (dx * dx + dy * dy || 1))), d = Math.hypot(a[0] + u * dx - t[0], a[1] + u * dy - t[1]); if (d < bd) { bd = d; paras = i; } }
+    omaR.p.splice(paras, 0, { lat: la, lon: lo, nimi: '' });
+  }
+  piirra();
+}
+function omaValmis() {
+  if (!omaR || omaR.p.length < 2) { ilmoita('Reittiin tarvitaan lähtöpiste ja määränpää.'); return; }
+  const p = omaR.p, a = p[0], b = p[p.length - 1], paa = q => ({ nimi: q.nimi || pisteNimi(q.lat, q.lon), lat: q.lat, lon: q.lon });
+  const x = { nimi: omaR.nimi, mista: paa(a), minne: paa(b), pisteet: litista(p.map(q => [q.lat, q.lon])) };
+  reitti = jalkiReitti(x); reitti.oma = true;
+  const t = omaR.id && T.reitit.find(q => q.id === omaR.id);      // tallennetun reitin muokkaus päivittää tallennuksen
+  if (t) { Object.assign(t, { mista: x.mista, minne: x.minne, pisteet: x.pisteet, matka: Math.round(reitti.r.matka), oma: true }); reitti.id = t.id; reitti.nimi = t.nimi; talletaT(); }
+  omaR = null; napautusCb = null; naytaReitti();
+  ilmoita('Oma reitti valmis: ' + n(reitti.r.matka / MPK) + ' mpk.' + (t ? ' Tallennettu reitti päivitettiin.' : ' Tallenna se kirjanmerkkinapista.'));
+}
+function omaPalkki() {
+  const v = omaR.vaihe, p = omaR.p, napit = [];
+  let ots, teksti;
+  if (v === 'alku') { ots = 'Oma reitti: lähtöpiste'; teksti = 'Napauta lähtöpaikkaa kartalla tai hae se nimellä.'; }
+  else if (v === 'loppu') { ots = 'Oma reitti: määränpää'; teksti = 'Lähtö: ' + p[0].nimi + '. Napauta määränpäätä kartalla tai hae se nimellä.'; }
+  else {
+    const d = omaMatka(); ots = n(d / MPK) + ' mpk · noin ' + kesto(d / MPK / (T.vene.nopeus || 10) * 3600) + ' · ' + (p.length - 2) + (p.length - 2 === 1 ? ' välipiste' : ' välipistettä');
+    teksti = omaR.valittu != null ? (omaR.valittu === 0 ? 'Lähtöpiste' : omaR.valittu === p.length - 1 ? 'Määränpää' : 'Välipiste ' + omaR.valittu) + ' valittu: napauta uutta paikkaa siirtääksesi sen tai poista se roskakorista.' : 'Napauta karttaa lisätäksesi välipisteen. Napauta pistettä valitaksesi sen.';
+  }
+  if (v !== 'vali') napit.push('<button data-a="omaNimi" aria-label="Hae paikka nimellä" title="Hae paikka nimellä"><svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5"/></svg></button>');
+  else {
+    if (omaR.valittu != null) napit.push('<button data-a="omaPoista" aria-label="Poista valittu piste" title="Poista valittu piste"><svg viewBox="0 0 24 24"><path d="M5 7h14M10 7V4h4v3M7 7l1 13h8l1-13M10 11v6M14 11v6"/></svg></button>');
+    else napit.push('<button data-a="omaKumoa" aria-label="Kumoa viimeisin muutos" title="Kumoa viimeisin muutos"' + (omaR.historia.length ? '' : ' disabled') + '>↶</button>');
+    napit.push('<button data-a="omaValmis" class="on" aria-label="Reitti valmis" title="Reitti valmis">✓</button>');
+  }
+  napit.push('<button data-a="omaPeru" aria-label="Peruuta" title="Peruuta">✕</button>');
+  return '<div class="kreitti" id="kOma"><div class="v"><b id="oOts">' + e(ots) + '</b><span id="oTeksti">' + e(teksti) + '</span></div>' + napit.join('') + '</div>';
+}
+Object.assign(A, {
+  omaReitti() { omaAloita(); },
+  omaNimi() {
+    if (!omaR || omaR.vaihe === 'vali') return;
+    valitsePaikka(omaR.vaihe === 'alku' ? 'Mistä lähdetään?' : 'Minne mennään?', p => omaAseta({ lat: p.lat, lon: p.lon, nimi: p.nimi }), { sijainti: true, kiintea: true, peru: omaKuuntele });
+  },
+  omaKumoa() { if (!omaR || !omaR.historia.length) return; omaR.p = JSON.parse(omaR.historia.pop()); omaR.valittu = null; piirra(); },
+  omaPoista() {
+    if (!omaR || omaR.valittu == null) return;
+    if (omaR.p.length <= 2) { ilmoita('Reitissä pitää olla lähtöpiste ja määränpää. Siirrä piste napauttamalla sille uusi paikka.'); return; }
+    omaR.historia.push(JSON.stringify(omaR.p)); omaR.p.splice(omaR.valittu, 1); omaR.valittu = null; piirra();
+  },
+  omaValmis() { omaValmis(); },
+  omaPeru() { omaR = null; napautusCb = null; piirra(); },
+  // Valmiin oman reitin pisteet takaisin muokattaviksi.
+  omaMuokkaa() {
+    if (!reitti || !reitti.oma) return; const P = reitti.r.pisteet;
+    omaAloita({ p: P.map((q, i) => ({ lat: q[0], lon: q[1], nimi: i === 0 ? reitti.mista.nimi : i === P.length - 1 ? reitti.minne.nimi : '' })), vaihe: 'vali', valittu: null, historia: [], id: reitti.id, nimi: reitti.nimi });
+  }
+});
 const reittiPalkki = () => !reitti ? '' : '<div class="kreitti" id="kReitti"><div class="v" data-a="reittiTiedot"><b id="kReittiN">' + e(reittiNimi()) + '</b><span id="kReittiS">' + e(reittiPerus()) + '</span></div>' +
   '<button data-a="reittiTallenna"' + (reitti.id ? ' class="on"' : '') + ' aria-label="' + (reitti.id ? 'Nimeä tai poista tallennettu reitti' : 'Tallenna reitti') + '" title="' + (reitti.id ? 'Nimeä tai poista tallennettu reitti' : 'Tallenna reitti') + '"><svg viewBox="0 0 24 24"><path d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1z"/></svg></button>' +
   '<button data-a="reittiKaanna" aria-label="Käännä reitti" title="Käännä reitti"><svg viewBox="0 0 24 24"><path d="M7 4L3 8l4 4M3 8h14M17 12l4 4-4 4M21 16H7"/></svg></button><button data-a="reittiPois" aria-label="Poista reitti" title="Poista reitti">✕</button></div>';
@@ -1065,13 +1164,15 @@ function reittiIkkuna() {
       (vayla ? '<div class="rivi" id="rMista"><div class="v"><span class="pieni">Mistä</span><b>' + e(rs.mista ? rs.mista.nimi : 'Valitse lähtöpaikka') + '</b></div><span class="pieni">Vaihda</span></div>' +
         '<div class="rivi" id="rMinne"><div class="v"><span class="pieni">Minne</span><b>' + e(rs.minne ? rs.minne.nimi : 'Valitse kohde') + '</b></div><span class="pieni">Vaihda</span></div>' +
         '<div class="napit"><button type="button" class="nappi" id="rKaanna">Käännä suunta</button><button type="button" class="nappi" id="rKoti">Kotisatamaan</button></div>' +
-        (T.reitit.length ? '<h4>Tallennetut reitit</h4><div class="plista">' + T.reitit.map(x => '<div class="rivi" data-r="' + x.id + '"><div class="v"><b>' + e(x.nimi) + '</b><span class="pieni">' + e(x.mista.nimi) + ' → ' + e(x.minne.nimi) + (x.matka ? ' · ' + n(x.matka / MPK) + ' mpk' : '') + (x.pisteet ? ' · ajettu jälki' : '') + '</span></div><button type="button" class="nappi pien" data-rm="' + x.id + '" aria-label="Nimeä tai poista">⋯</button></div>').join('') + '</div>'
+        '<button type="button" class="nappi" id="rOma">Piirrä oma reitti kartalle</button>' +
+        (T.reitit.length ? '<h4>Tallennetut reitit</h4><div class="plista">' + T.reitit.map(x => '<div class="rivi" data-r="' + x.id + '"><div class="v"><b>' + e(x.nimi) + '</b><span class="pieni">' + e(x.mista.nimi) + ' → ' + e(x.minne.nimi) + (x.matka ? ' · ' + n(x.matka / MPK) + ' mpk' : '') + (x.pisteet ? (x.oma ? ' · oma reitti' : ' · ajettu jälki') : '') + '</span></div><button type="button" class="nappi pien" data-rm="' + x.id + '" aria-label="Nimeä tai poista">⋯</button></div>').join('') + '</div>'
           : '<div class="pieni">Tallennettuja reittejä ei vielä ole. Suunniteltu reitti tallennetaan kartan reittipalkin kirjanmerkkinapista.</div>') +
         '<div class="pieni">Reitti kulkee Väyläviraston väyliä pitkin' + (T.vene.syvays ? ' ja käyttää vain väyliä, joiden syväys on vähintään ' + n(T.vene.syvays) + ' m' : '') + '. Väylätiedot: ' + ALUEET.filter(a => vayla.osat[a.id]).map(a => a.nimi).join(' ja ') + ', haettu ' + pvm(vayla.haettu) + ' (' + vayla.linjat.length + ' väyläosuutta, ' + vayla.merkit.length + ' merimerkkiä' + (vayla.rajoitukset ? ', ' + vayla.rajoitukset.length + ' rajoitusaluetta' : '') + '). <b>Reitti on suunnittelun apu – tarkista se merikartalta, älä navigoi sen varassa.</b></div>' +
         '<div class="napit"><button type="button" class="nappi" id="rSulje">Sulje</button><button type="button" class="nappi paa" id="rLaske">Suunnittele reitti</button></div>' +
         '<button type="button" class="nappi pien" id="rPaivita">Päivitä väylätiedot</button>'
         : '<div class="pieni">Reittisuunnittelu tarvitsee alueen väylät ja merimerkit sekä nopeusrajoitusalueet (Väyläviraston avoin data, 5–15 Mt alueelta). Ne ladataan kerran laitteelle, ja sen jälkeen reitit lasketaan ilman verkkoa. Valitse alue; toisen alueen voi ladata myöhemmin kartan tasonapista.</div><div class="pieni" id="rTila"></div>' +
         ALUEET.map(a => '<button type="button" class="nappi paa rLataa" data-alue="' + a.id + '">Lataa väylätiedot: ' + a.nimi + '</button>').join('') +
+        '<div class="pieni">Oman reitin voit piirtää ilman väylätietojakin: napautat reitin pisteet itse kartalle.</div><button type="button" class="nappi" id="rOma">Piirrä oma reitti kartalle</button>' +
         '<div class="napit"><button type="button" class="nappi" id="rSulje">Sulje</button></div>') + '</form>';
     d.querySelector('#rSulje').onclick = () => d.close();
     const lataa = async nappi => {
@@ -1081,13 +1182,14 @@ function reittiIkkuna() {
       catch (x) { ilmoita('Väylätietojen lataus ei onnistunut. Yritä hetken kuluttua uudelleen.'); }
       piirraIkkuna();
     };
+    d.querySelector('#rOma').onclick = () => { d.close(); omaAloita(); };
     if (!vayla) { d.querySelectorAll('.rLataa').forEach(el => el.onclick = () => lataa(el)); return; }
     d.querySelector('#rPaivita').onclick = ev => lataa(ev.target);
     // tallennettu reitti: napautus avaa sen kartalle, ⋯ nimeää tai poistaa
     d.querySelectorAll('[data-r]').forEach(el => el.onclick = async ev => {
       const x = T.reitit.find(q => q.id === el.dataset.r); if (!x) return;
       if (ev.target.closest('[data-rm]')) { muokkaaReittia(x, true); return; }
-      if (x.pisteet) { reitti = jalkiReitti(x); reitti.id = x.id; d.close(); naytaReitti(); return; }      // ajettu jälki: ei lasketa väyliä pitkin
+      if (x.pisteet) { reitti = jalkiReitti(x); reitti.id = x.id; if (x.oma) reitti.oma = true; d.close(); naytaReitti(); return; }      // ajettu jälki: ei lasketa väyliä pitkin
       rs.mista = Object.assign({}, x.mista); rs.minne = Object.assign({}, x.minne);
       if (await laskeReitti()) { reitti.id = x.id; reitti.nimi = x.nimi; if (Math.round(reitti.r.matka) !== x.matka) { x.matka = Math.round(reitti.r.matka); talletaT(); } d.close(); naytaReitti(); }
     });
@@ -1110,7 +1212,8 @@ function reittiTiedotIkkuna() {
   const vaylat = r.vaylat.filter(x => x.m >= 150);
   d.innerHTML = '<form method="dialog"><h3>' + e(reitti.mista.nimi) + ' → ' + e(reitti.minne.nimi) + '</h3>' +
     '<div class="luvut"><div class="luku"><b>' + n(r.matka / MPK) + '</b><span>mpk</span></div><div class="luku"><b>' + reittiAika(r) + '</b><span>nopeudella ' + n(T.vene.nopeus || 10, 0) + ' kn</span></div><div class="luku"><b>' + (r.minSyv != null ? n(r.minSyv) : '–') + '</b><span>pienin väyläsyväys, m</span></div></div>' +
-    (reitti.jalki ? '<div class="pieni"><b>Tämä reitti on aiemmin ajetun matkan GPS-jälki</b>, josta on karsittu pisteitä. Se ei kulje väylätietojen mukaan eikä tiedä syvyyksistä: vedenkorkeus, merimerkit ja olosuhteet ovat voineet muuttua. Tarkista reitti merikartalta.</div>'
+    (reitti.oma ? '<div class="pieni"><b>Tämä on itse piirtämäsi reitti.</b> Viivat kulkevat suoraan pisteestä toiseen, eikä sovellus tarkista, onko välissä maata, matalikkoa tai kiviä. Tarkista jokainen osuus merikartalta ja lisää välipisteitä tarvittaessa.</div><button type="button" class="nappi" id="tMuokkaa">Muokkaa reittipisteitä</button>'
+      : reitti.jalki ? '<div class="pieni"><b>Tämä reitti on aiemmin ajetun matkan GPS-jälki</b>, josta on karsittu pisteitä. Se ei kulje väylätietojen mukaan eikä tiedä syvyyksistä: vedenkorkeus, merimerkit ja olosuhteet ovat voineet muuttua. Tarkista reitti merikartalta.</div>'
       : '<div class="pieni"><b>Tarkista reitti merikartalta ennen lähtöä.</b> Väylän ulkopuoliset osuudet (oranssi katkoviiva) ovat suoria viivoja, jotka voivat kulkea maan tai matalikon yli: lähdössä ' + Math.round(r.alku) + ' m, perillä ' + Math.round(r.loppu) + ' m' + (r.ulkona - r.alku - r.loppu > 50 ? ' ja väylien välillä ' + Math.round(r.ulkona - r.alku - r.loppu) + ' m' : '') + '.' +
       (T.vene.syvays && r.minSyv != null ? '' : ' Veneen syväystä ei ole asetettu, joten reitti voi käyttää matalia väyliä.') + '</div>' +
       '<h4>Väylät järjestyksessä</h4><div class="plista">' + vaylat.map(x => '<div class="rivi"><div class="v"><b>' + e(vayla.nimet[x.j] || 'Nimetön väylä') + '</b></div><div class="o">' + n(x.m / MPK) + ' mpk</div></div>').join('') + '</div>') +
@@ -1119,6 +1222,7 @@ function reittiTiedotIkkuna() {
     '<h4>Merimerkit reitin varrella (' + reitti.merkit.length + ')</h4><div class="plista">' + (reitti.merkit.length ? reitti.merkit.map(m => '<div class="rivi"><div class="v"><b>' + e(MERKKILAJIT[m.laji] || m.tyyppi) + '</b><span class="pieni">' + e(m.nimi) + '</span></div><div class="o">' + n(m.kohta / MPK) + ' mpk</div></div>').join('') : '<div class="pieni">Ei merkkejä 150 metrin säteellä reitistä.</div>') + '</div>' +
     '<div class="napit"><button type="button" class="nappi paa" id="tSulje">Sulje</button></div></form>';
   d.querySelector('#tSulje').onclick = () => d.close();
+  const muok = d.querySelector('#tMuokkaa'); if (muok) muok.onclick = () => { d.close(); A.omaMuokkaa(); };
   const uusi = d.querySelector('#tUusi');
   if (uusi) uusi.onclick = async () => { d.close(); rs.mista = { sijainti: true, nimi: 'Nykyinen sijainti' }; rs.minne = Object.assign({}, reitti.minne); if (await laskeReitti()) { naytaReitti(); ilmoita('Reitti laskettu uudelleen nykyisestä sijainnista.'); } };
   d.showModal();
@@ -1148,6 +1252,7 @@ Object.assign(A, {
     const mista = kiintea(reitti.mista, p[0]), minne = kiintea(reitti.minne, p[p.length - 1]);
     lomake('Tallenna reitti', [{ k: 'nimi', n: 'Reitin nimi', req: 1 }], { nimi: mista.nimi + ' – ' + minne.nimi }, async o => {
       const x = { id: uusiId(), nimi: o.nimi, mista, minne, matka: Math.round(reitti.r.matka), luotu: Date.now() };
+      if (reitti.oma) x.oma = true;
       if (reitti.jalki) x.pisteet = litista(reitti.r.pisteet);      // ajettu jälki tallennetaan pisteinä, koska sitä ei voi laskea väylistä uudelleen
       T.reitit.push(x); reitti.id = x.id; reitti.nimi = x.nimi; await talletaT(); ilmoita('Reitti tallennettu: ' + x.nimi);
     });
@@ -1156,7 +1261,7 @@ Object.assign(A, {
   // Sama reitti toiseen suuntaan: kohteesta takaisin lähtöpaikkaan.
   async reittiKaanna() {
     if (!reitti) return; const p0 = reitti.r.pisteet[0];
-    if (reitti.jalki) { reitti = jalkiReitti({ mista: reitti.minne, minne: reitti.mista, pisteet: litista(reitti.r.pisteet.slice().reverse()) }); naytaReitti(); return; }
+    if (reitti.jalki) { const oma = reitti.oma; reitti = jalkiReitti({ mista: reitti.minne, minne: reitti.mista, pisteet: litista(reitti.r.pisteet.slice().reverse()) }); if (oma) reitti.oma = true; naytaReitti(); return; }
     const paluu = reitti.mista.sijainti ? { nimi: paikkaNimi([p0[0], p0[1]]) || 'Lähtöpaikka', lat: p0[0], lon: p0[1] } : reitti.mista;
     rs.mista = reitti.minne; rs.minne = paluu;
     if (await laskeReitti()) naytaReitti();
@@ -1257,6 +1362,16 @@ const aisTyyppi = k => k == null ? '' : k === 30 ? 'Kalastusalus' : k === 36 ? '
 // Piirtää lisätiedot kartalle ja kirjaa napautettavat kohteet (lisa.osumat).
 function piirraLisat(c, X, Y, W, H, z) {
   lisa.osumat = [];
+  // Muokattava oma reitti: viiva ja pisteet (A = lähtö, B = määränpää, numerot = välipisteet, keltainen = valittu).
+  if (omaR && omaR.p.length) {
+    const P = omaR.p; c.lineJoin = c.lineCap = 'round';
+    if (P.length > 1) for (const [w, v] of [[8, '#fff'], [4.5, '#1565c0']]) { c.lineWidth = w; c.strokeStyle = v; c.beginPath(); P.forEach((q, i) => i ? c.lineTo(X(q.lon), Y(q.lat)) : c.moveTo(X(q.lon), Y(q.lat))); c.stroke(); }
+    P.forEach((q, i) => {
+      const x = X(q.lon), y = Y(q.lat), loppu = i === P.length - 1 && omaR.vaihe === 'vali', paa = i === 0 || loppu, val = omaR.valittu === i;
+      c.beginPath(); c.arc(x, y, (paa ? 13 : 11) + (val ? 4 : 0), 0, 7); c.fillStyle = val ? '#ffd43b' : i === 0 ? '#1f8a4c' : loppu ? '#c0392b' : '#fff'; c.fill(); c.lineWidth = 3; c.strokeStyle = val ? '#12222f' : paa ? '#fff' : '#1565c0'; c.stroke();
+      c.font = '700 12px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = paa && !val ? '#fff' : '#12222f'; c.fillText(i === 0 ? 'A' : loppu ? 'B' : String(i), x, y + .5);
+    });
+  }
   const sisalla = (x, y) => x > -30 && y > -30 && x < W + 30 && y < H + 30;
   const teksti = (s, x, y, koko, vari) => { c.font = '600 ' + koko + 'px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top'; c.lineWidth = 3.5; c.strokeStyle = 'rgba(255,255,255,.92)'; c.strokeText(s, x, y); c.fillStyle = vari; c.fillText(s, x, y); };
   if (T.as.satamat && lisa.satamat && z >= 8.5) for (const s of lisa.satamat.lista) {
