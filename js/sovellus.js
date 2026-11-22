@@ -23,7 +23,7 @@ const KULULAJIT = ['Satama ja laituri', 'Huolto ja varaosat', 'Varusteet', 'Vaku
 function uusiTila() {
   return { vene: { nimi: '', tunnit0: 0, mpk0: 0, syvays: null, nopeus: 10 }, koti: null, reitit: [], paikat: [], tankkaukset: [], kulut: [],
     huollot: HUOLLOT.map((h, i) => ({ id: 'h' + i, nimi: h[0], valiH: h[1], valiKk: h[2], tehtyPvm: null, tehtyH: null })),
-    as: { auto: true, pysMin: 15, seuranta: false, kartta: 'meri', yksikko: 'kn', kallistus: false, kallNolla: null, rajoitus: true, reittiSeuranta: true, reittiSivu: 200, suuntaviiva: true, tuuli: false, ais: false, satamat: false }, saajono: [], kopio: null };
+    as: { auto: true, pysMin: 15, seuranta: false, kartta: 'meri', yksikko: 'kn', kallistus: false, kallNolla: null, rajoitus: true, reittiSeuranta: true, reittiSivu: 200, suuntaviiva: true, syvyys: false, tuuli: false, ais: false, satamat: false }, saajono: [], kopio: null };
 }
 
 // ---------- tallennus ----------
@@ -350,6 +350,10 @@ function nLisaa() {
     '<div class="kortti"><h2>Varmuuskopio</h2><div class="pieni">Tiedot ovat vain tämän puhelimen selaimessa. Jos selaimen tiedot tyhjennetään tai puhelin vaihtuu, ne häviävät – vie kopio talteen säännöllisesti.' + (T.kopio ? ' Viimeisin kopio ' + pvm(T.kopio) + '.' : ' Kopiota ei ole vielä otettu.') + (vanha ? ' <b>Ota uusi kopio.</b>' : '') + '</div>' +
     '<div class="napit"><button class="nappi paa" data-a="vie">Vie varmuuskopio</button><button class="nappi" data-a="tuo">Palauta kopiosta</button></div><input type="file" id="tuoTiedosto" accept=".json,application/json" hidden></div>' +
     '<div class="kortti"><h2>Kartat ja väylätiedot ilman verkkoa</h2><div class="pieni">Alla olevat napit lataavat laitteelle valitun merialueen merikartan sekä väylät, merimerkit ja nopeusrajoitusalueet. Alueet ladataan erikseen. Reitti kulkee alueelta toiselle, kun vierekkäiset alueet on ladattu (Suomenlahti–Saaristomeri–Selkämeri). Merikartan katsotut alueet tallentuvat laitteelle myös itsestään; kartalla näkyvän alueen saat talteen kartan tasonapista (alin pyöreä nappi).<span id="karttaTila"></span></div><div class="napit">' + alueNapit() + '<button class="nappi vaara" data-a="tyhjennaKartat">Poista tallennetut kartat</button></div></div>' +
+    '<div class="kortti"><h2>Syvyyskäyrät</h2><div class="pieni">Merikartan syvyyskäyrät (3, 6, 10, 20 metriä ja muut kartoitetut syvyydet) omana karttatasonaan, josta matalikot, penkat ja syvänteiden reunat erottuvat selvästi. Käyrät ladataan alueittain laitteelle, minkä jälkeen ne näkyvät ilman verkkoa. Näkyviin ne kytketään kartan tasonapista kohdasta Syvyyskäyrät.</div>' +
+    ALUEET.map(a => '<div class="rivi" data-a="syvyysLataa" data-id="' + a.id + '"><div class="v"><b>' + a.nimi + '</b><span class="pieni" id="syvTila-' + a.id + '">Ei ladattu</span></div><span class="pieni">Lataa</span></div>').join('') +
+    '<div class="napit"><button class="nappi vaara pien" data-a="syvyysPoista">Poista ladatut syvyyskäyrät</button></div>' +
+    '<div class="pieni">Lähde: Liikenne- ja viestintävirasto Traficom, merikartta-aineisto (latauspäivä näkyy alueen kohdalla). Käyttö Traficomin merikartoitusaineiston lisenssin mukaan: aineistoa ei saa käyttää navigointiin, eikä se täytä asianmukaisen merikartan vaatimuksia. Käyrät on yksinkertaistettu noin 4 metrin tarkkuuteen.</div></div>' +
     (T.saajono.length ? '<div class="kortti"><h2>Sää</h2><div class="pieni">' + T.saajono.length + ' matkan sää odottaa verkkoyhteyttä.</div><div class="napit"><button class="nappi" data-a="saaNyt">Hae nyt</button></div></div>' : '') +
     '<div class="kortti"><h2>Hyvä tietää</h2><div class="pieni">Seuranta toimii vain, kun sovellus on auki ja näyttö päällä; sovellus pitää näytön päällä itse. Sää haetaan Open-Meteosta noin kilometrin tarkkuuteen pyöristetyllä sijainnilla. Karttapohja haetaan Traficomin avoimesta merikarttapalvelusta tai OpenStreetMapista, jolloin palvelu näkee, mitä aluetta katsot. Merikartta on rasterikuva, jota ei päivitetä kuten virallista karttaa – älä navigoi sen varassa. Muuta tietoa laitteelta ei lähde.</div></div>';
 }
@@ -370,7 +374,7 @@ function piirra() {
   merkit();
   lk = null; paivitaLive(); paivitaKall(true);
   if (nakyma === 'yksi' && $('#kartta')) DB.get('jaljet', valittu).then(p => { if (!p || !p.length || !$('#kartta')) return; jalki = p; const uusi = !dv; if (uusi) dv = { lat: 0, lon: 0, z: 10, seuraa: false }; kYksi = new Kartta($('#kartta'), dv); kYksi.pts = p; if (uusi) kYksi.sovita(p); kYksi.piirra(); if ($('#kayra')) piirraKayra($('#kayra'), p); });
-  if (nakyma === 'lisaa') { paivitaKarttaTila(); paivitaRajTila(); paivitaGpsTila(); }
+  if (nakyma === 'lisaa') { paivitaKarttaTila(); paivitaRajTila(); paivitaGpsTila(); paivitaSyvyysTila(); }
 }
 
 // ---------- kartta ----------
@@ -783,6 +787,7 @@ const A = {
       '<label class="cb"><input type="checkbox" id="kKall"' + (T.as.kallistus ? ' checked' : '') + '>Näytä kallistusmittari kartalla</label>' +
       '<label class="cb"><input type="checkbox" id="kSuuntaviiva"' + (T.as.suuntaviiva ? ' checked' : '') + '>Veneen suuntaviiva</label>' +
       '<div class="pieni" id="kSuuntaTila">' + (!paikkaTuore() ? 'Suuntaviiva näkyy, kun GPS on päällä ja vene liikkuu.' : kulku == null ? 'Kulkusuuntaa ei vielä tiedetä: viiva ilmestyy, kun vene on liikkunut noin 10 metriä.' : 'Kulkusuunta nyt ' + Math.round(kulku) + '° ' + ilmansuunta(kulku) + '.') + '</div>' +
+      '<label class="cb"><input type="checkbox" id="kSyvyys"' + (T.as.syvyys ? ' checked' : '') + '>Syvyyskäyrät</label><div class="pieni" id="kSyvyysTila"></div>' +
       '<label class="cb"><input type="checkbox" id="kSeur"' + (T.as.reittiSeuranta ? ' checked' : '') + '>Seuraa reittiä ajon aikana</label>' +
       '<label>Varoita, kun vene on sivussa reitistä<select id="kSivu">' + [[100, 'yli 100 m'], [200, 'yli 200 m'], [500, 'yli 500 m'], [0, 'ei varoitusta']].map(x => '<option value="' + x[0] + '"' + (x[0] === T.as.reittiSivu ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
       '<div class="pieni">Seuranta näyttää kartalla olevasta reitistä jäljellä olevan matkan, arvioidun tuloajan ja seuraavan käännöksen. Se tarvitsee sijainnin, eli seurannan pitää olla päällä Matka-välilehdellä.</div>' +
@@ -793,6 +798,9 @@ const A = {
     d.querySelectorAll('[data-lisa]').forEach(el => el.onchange = async () => { T.as[el.dataset.lisa] = el.checked; await talletaT(); if (kLive) kLive.piirra(); lisatPaivita(); });
     d.querySelector('#kKall').onchange = async ev => { T.as.kallistus = ev.target.checked && await kallPaalle(); if (!T.as.kallistus) kallPois(); ev.target.checked = T.as.kallistus; await talletaT(); paivitaKall(true); };
     d.querySelector('#kSuuntaviiva').onchange = async ev => { T.as.suuntaviiva = ev.target.checked; await talletaT(); karttaUudelleen(); };
+    const syvTila = async () => { await syvyysMuistiin(); const el = d.querySelector('#kSyvyysTila'); if (el) el.textContent = Object.keys(syv.osat).length ? 'Näkyvät, kun kartta on lähennetty. Punainen 3 m, oranssi 6 m, sininen 7–10 m, tummansininen sitä syvemmät. Ei navigointiin.' : 'Syvyyskäyriä ei ole vielä ladattu. Lataa ne Lisää-sivun kohdasta Syvyyskäyrät.'; };
+    syvTila();
+    d.querySelector('#kSyvyys').onchange = async ev => { T.as.syvyys = ev.target.checked; await talletaT(); await syvTila(); karttaUudelleen(); };
     d.querySelector('#kSeur').onchange = async ev => {
       T.as.reittiSeuranta = ev.target.checked; await talletaT(); seurNollaa();
       if (T.as.reittiSeuranta && reitti && !paikkaTuore()) ilmoita('Reitin seuranta tarvitsee sijainnin. Käynnistä seuranta Matka-välilehdeltä.');
@@ -1363,6 +1371,7 @@ const aisTyyppi = k => k == null ? '' : k === 30 ? 'Kalastusalus' : k === 36 ? '
 // Piirtää lisätiedot kartalle ja kirjaa napautettavat kohteet (lisa.osumat).
 function piirraLisat(c, X, Y, W, H, z) {
   lisa.osumat = [];
+  piirraSyvyys(c, X, Y, W, H, z);
   // Muokattava oma reitti: viiva ja pisteet (A = lähtö, B = määränpää, numerot = välipisteet, keltainen = valittu).
   if (omaR && omaR.p.length) {
     const P = omaR.p; c.lineJoin = c.lineCap = 'round';
@@ -1472,6 +1481,145 @@ function karttaNapautus(x, y) {
 }
 Object.assign(A, { aisNyt() { if (!navigator.onLine) { ilmoita('Ei verkkoyhteyttä.'); return; } lisa.aisAika = 0; aisHae(); }, satamatPaivita() { satamatHae(true); }, tuuliAika() { lisa.tunti = (lisa.tunti + 1) % TUNNIT.length; if (kLive) kLive.piirra(); } });
 setInterval(() => { if (typeof T !== 'undefined' && T && nakyma === 'kartta') lisatPaivita(); }, 60000);
+
+// ---------- syvyyskäyrät (Traficomin merikartta-aineisto) ----------
+// Käyrät haetaan Traficomin WFS-rajapinnasta alueittain pienissä ruuduissa, yksinkertaistetaan noin 4 metrin tarkkuuteen ja tallennetaan
+// laitteelle tiiviinä taulukkoina (kv: 'syvyys-<alue>'): p = kaikkien käyrien pisteet [lon, lat, ...], alku = käyrän ensimmäisen pisteen indeksi,
+// s = käyrän syvyys metreinä, bb = käyrän rajat [lon0, lat0, lon1, lat1]. Piirtoa varten käyrät jaetaan muistissa ruudukkoon.
+// Lisenssi: Traficomin merikartoitusaineiston lisenssi – ei navigointikäyttöön, lähde mainittava.
+const SYV_URL = 'https://julkinen.traficom.fi/inspirepalvelu/rajoitettu/wfs?service=WFS&version=2.0.0&request=GetFeature&typeNames=rajoitettu:DepthContour_L&outputFormat=application/json&srsName=EPSG:4326';
+const SYV_RX = 0.04, SYV_RY = 0.02;      // piirtoruudukon ruudun koko asteina (noin 2,2 km)
+const syv = { osat: {}, ladattu: false, kehys: 0 };
+const syvVari = d => d <= 3 ? '#e03131' : d <= 6 ? '#e8590c' : d <= 10 ? '#1c7ed6' : '#0b3d91';
+function syvRuudukko(osa) {
+  const r = new Map();
+  for (let k = 0; k < osa.n; k++) {
+    const x0 = Math.floor(osa.bb[k * 4] / SYV_RX), y0 = Math.floor(osa.bb[k * 4 + 1] / SYV_RY), x1 = Math.floor(osa.bb[k * 4 + 2] / SYV_RX), y1 = Math.floor(osa.bb[k * 4 + 3] / SYV_RY);
+    for (let x = x0; x <= x1; x++) for (let y = y0; y <= y1; y++) { const a = x * 100000 + y; let l = r.get(a); if (!l) r.set(a, l = []); l.push(k); }
+  }
+  osa.ruudut = r; osa.leima = new Uint32Array(osa.n);
+}
+async function syvyysMuistiin() {
+  if (syv.ladattu) return syv.osat;
+  for (const a of ALUEET.concat(syv.lisaAlueet || [])) try { const o = await DB.get('kv', 'syvyys-' + a.id); if (o && o.p && !syv.osat[a.id]) { syvRuudukko(o); syv.osat[a.id] = o; } } catch (x) { }
+  syv.ladattu = true; return syv.osat;
+}
+// Lataa alueen syvyyskäyrät. edistys(valmiit ruudut, kaikki ruudut, käyriä). Palauttaa tallennetun osan tai null, jos keskeytettiin.
+async function syvyysLataa(alue, edistys, tila) {
+  const b = alue.b, DX = 0.3, DY = 0.15, ruudut = [];
+  for (let lo = b.lo0; lo < b.lo1 - 1e-9; lo += DX) for (let la = b.la0; la < b.la1 - 1e-9; la += DY) ruudut.push([+lo.toFixed(5), +la.toFixed(5), +Math.min(lo + DX, b.lo1).toFixed(5), +Math.min(la + DY, b.la1).toFixed(5)]);
+  const nahty = new Set(), kayrat = []; let valmiit = 0, pisteita = 0, virheita = 0, i = 0;
+  const kasittele = g => {
+    for (const f of g.features || []) {
+      const id = f.id || (f.properties && f.properties.IDENTIFIER), d = f.properties ? f.properties.VALDCO : null, geo = f.geometry;
+      if (nahty.has(id)) continue; nahty.add(id); if (!geo || d == null) continue;      // ruutujen rajan ylittävä käyrä tulee usean ruudun mukana
+      for (const l of geo.type === 'MultiLineString' ? geo.coordinates : geo.type === 'LineString' ? [geo.coordinates] : []) { if (l.length < 2) continue; const y = yksinkertaista(l.map(q => [q[1], q[0]]), 4); kayrat.push([d, y]); pisteita += y.length; }
+    }
+  };
+  const hae = async (r, taso) => {
+    const res = await fetch(SYV_URL + '&bbox=' + r.join(',') + ',EPSG:4326', AbortSignal.timeout ? { signal: AbortSignal.timeout(90000) } : undefined);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const g = await res.json(), saatu = (g.features || []).length;
+    if (typeof g.numberMatched === 'number' && g.numberMatched > saatu && taso < 4) {      // palvelin katkaisi vastauksen: ruutu jaetaan neljään
+      const mx_ = (r[0] + r[2]) / 2, my_ = (r[1] + r[3]) / 2;
+      for (const q of [[r[0], r[1], mx_, my_], [mx_, r[1], r[2], my_], [r[0], my_, mx_, r[3]], [mx_, my_, r[2], r[3]]]) await hae(q, taso + 1);
+      return;
+    }
+    kasittele(g);
+  };
+  const tyo = async () => {
+    while (i < ruudut.length && !tila.peru) {
+      const r = ruudut[i++]; let ok = false;
+      for (let y = 0; y < 3 && !ok && !tila.peru; y++) { try { await hae(r, 0); ok = true; } catch (x) { await new Promise(v => setTimeout(v, 800 + 1200 * y)); } }
+      if (!ok) virheita++;
+      edistys(++valmiit, ruudut.length, kayrat.length);
+    }
+  };
+  await Promise.all([tyo(), tyo()]);
+  if (tila.peru) return null;
+  if (!kayrat.length) throw new Error(virheita ? 'yhteys ei toiminut' : 'alueelta ei löytynyt syvyyskäyriä');
+  const n = kayrat.length, alku = new Uint32Array(n + 1), s = new Float32Array(n), bb = new Float32Array(n * 4), p = new Float32Array(pisteita * 2); let o = 0;
+  kayrat.forEach(([d, y], k) => {
+    alku[k] = o / 2; s[k] = d; let a0 = 90, a1 = -90, o0 = 180, o1 = -180;
+    for (const q of y) { p[o++] = q[1]; p[o++] = q[0]; if (q[0] < a0) a0 = q[0]; if (q[0] > a1) a1 = q[0]; if (q[1] < o0) o0 = q[1]; if (q[1] > o1) o1 = q[1]; }
+    bb[k * 4] = o0; bb[k * 4 + 1] = a0; bb[k * 4 + 2] = o1; bb[k * 4 + 3] = a1;
+  });
+  alku[n] = o / 2;
+  const osa = { haettu: Date.now(), n, pisteita, vajaa: virheita, p, alku, s, bb };
+  await DB.put('kv', osa, 'syvyys-' + alue.id);
+  await syvyysMuistiin(); syvRuudukko(osa); syv.osat[alue.id] = osa;
+  return osa;
+}
+// Piirtää näkyvän alueen syvyyskäyrät. Kaukaa katsottaessa käyriä ei piirretä (niitä olisi liikaa), ja keskietäisyydellä pisteitä harvennetaan.
+function piirraSyvyys(c, X, Y, W, H, z) {
+  const cv = c.canvas; cv.dataset.syvyys = 0;
+  if (!T.as.syvyys || z < 11) return;
+  const lo0 = lonX(mx(lv.lon, z) - W / 2, z), lo1 = lonX(mx(lv.lon, z) + W / 2, z), la1 = latY(my(lv.lat, z) - H / 2, z), la0 = latY(my(lv.lat, z) + H / 2, z);
+  if (c.canvas !== (kLive && kLive.cv)) return;      // vain päänäkymän kartalla
+  const askel = z >= 13.5 ? 1 : z >= 12.3 ? 2 : 4, ryhmat = new Map(), nimet = []; let maara = 0; const kehys = ++syv.kehys;
+  for (const osa of Object.values(syv.osat)) {
+    if (!osa.ruudut) continue;
+    for (let x = Math.floor(lo0 / SYV_RX); x <= Math.floor(lo1 / SYV_RX); x++) for (let y = Math.floor(la0 / SYV_RY); y <= Math.floor(la1 / SYV_RY); y++) {
+      const l = osa.ruudut.get(x * 100000 + y); if (!l) continue;
+      for (const k of l) {
+        if (osa.leima[k] === kehys) continue; osa.leima[k] = kehys;
+        if (osa.bb[k * 4] > lo1 || osa.bb[k * 4 + 2] < lo0 || osa.bb[k * 4 + 1] > la1 || osa.bb[k * 4 + 3] < la0) continue;
+        const d = osa.s[k]; let polku = ryhmat.get(d); if (!polku) ryhmat.set(d, polku = new Path2D());
+        const a = osa.alku[k], b = osa.alku[k + 1] - 1, P = osa.p;
+        polku.moveTo(X(P[a * 2]), Y(P[a * 2 + 1]));
+        for (let j = a + askel; j < b; j += askel) polku.lineTo(X(P[j * 2]), Y(P[j * 2 + 1]));
+        polku.lineTo(X(P[b * 2]), Y(P[b * 2 + 1])); maara++;
+        if (z >= 13 && b - a >= 12) { const m = (a + b) >> 1; nimet.push([X(P[m * 2]), Y(P[m * 2 + 1]), d]); }
+      }
+    }
+  }
+  c.lineJoin = c.lineCap = 'round';
+  for (const [d, polku] of ryhmat) { c.lineWidth = d <= 3 ? 1.9 : 1.4; c.strokeStyle = syvVari(d); c.globalAlpha = 0.9; c.stroke(polku); }
+  c.globalAlpha = 1;
+  // syvyysluvut käyrien keskikohtiin, harvakseltaan (enintään yksi 90 pisteen ruutua kohti)
+  if (nimet.length) {
+    const varattu = new Set(); c.font = '700 11px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+    for (const [x, y, d] of nimet) {
+      if (x < 12 || y < 12 || x > W - 12 || y > H - 12) continue; const a = Math.floor(x / 90) + ',' + Math.floor(y / 90); if (varattu.has(a)) continue; varattu.add(a);
+      c.lineWidth = 3.5; c.strokeStyle = 'rgba(255,255,255,.95)'; c.strokeText(d, x, y); c.fillStyle = syvVari(d); c.fillText(d, x, y);
+    }
+  }
+  cv.dataset.syvyys = maara;
+}
+async function paivitaSyvyysTila() {
+  await syvyysMuistiin();
+  for (const a of ALUEET) { const el = $('#syvTila-' + a.id), o = syv.osat[a.id]; if (el) el.textContent = o ? 'Ladattu ' + pvm(o.haettu) + ' · ' + o.n + ' käyrää' + (o.vajaa ? ' · ' + o.vajaa + ' ruutua jäi lataamatta, lataa uudelleen' : '') : 'Ei ladattu'; }
+}
+function syvyysIkkuna(alue) {
+  if (!navigator.onLine) { ilmoita('Lataus vaatii verkkoyhteyden.'); return; }
+  const d = $('#dlg'), tila = { peru: false }, on = syv.osat[alue.id];
+  d.innerHTML = '<form method="dialog"><h3>Syvyyskäyrät: ' + alue.nimi + '</h3><div class="pieni">Ladataan merikartan syvyyskäyrät alueelta ' + alue.kuvaus + '. Aineistoa siirretään kymmeniä megatavuja, ja lataus kestää puolesta minuutista muutamaan minuuttiin yhteyden mukaan. Laitteelle käyrät tallentuvat tiivistettyinä (Suomenlahti noin 7 Mt). Käytä Wi-Fiä ja pidä sovellus auki.' + (on ? ' Alueen käyrät on ladattu ' + pvm(on.haettu) + ' – uusi lataus korvaa ne.' : '') + '</div>' +
+    '<progress id="lEd" value="0" max="1" hidden></progress><div class="pieni" id="lTeksti"></div>' +
+    '<div class="napit"><button type="button" class="nappi" id="lPeru">Sulje</button><button type="button" class="nappi paa" id="lOk">Lataa</button></div></form>';
+  d.querySelector('#lPeru').onclick = () => { tila.peru = true; d.close(); };
+  d.querySelector('#lOk').onclick = async () => {
+    const ed = d.querySelector('#lEd'), tx = d.querySelector('#lTeksti');
+    d.querySelector('#lOk').disabled = true; d.querySelector('#lPeru').textContent = 'Keskeytä'; ed.hidden = false; naytto(true);
+    let viesti;
+    try {
+      const o = await syvyysLataa(alue, (k, kaikki, kayria) => { ed.value = k / kaikki; tx.textContent = 'Ruutu ' + k + ' / ' + kaikki + ' · ' + kayria + ' käyrää'; }, tila);
+      viesti = !o ? 'Keskeytetty. Aiemmin ladatut käyrät ovat ennallaan.' : 'Valmis: ' + o.n + ' syvyyskäyrää tallennettu laitteelle.' + (o.vajaa ? ' ' + o.vajaa + ' ruutua jäi lataamatta yhteysvirheen takia – lataa alue uudelleen.' : '') + (T.as.syvyys ? '' : ' Kytke käyrät näkyviin kartan tasonapista.');
+    } catch (x) { viesti = 'Lataus ei onnistunut (' + (x && x.message || x) + '). Yritä hetken kuluttua uudelleen.'; }
+    if (watchId == null) naytto(false);
+    if (!d.contains(tx)) return;
+    tx.textContent = viesti; d.querySelector('#lPeru').textContent = 'Sulje'; d.querySelector('#lOk').disabled = false; tila.peru = false; paivitaSyvyysTila(); karttaUudelleen();
+  };
+  d.showModal();
+}
+Object.assign(A, {
+  syvyysLataa(id) { const a = ALUEET.find(x => x.id === id); if (a) syvyysIkkuna(a); },
+  async syvyysPoista() {
+    await syvyysMuistiin(); if (!Object.keys(syv.osat).length) { ilmoita('Syvyyskäyriä ei ole ladattu.'); return; }
+    if (!confirm('Poistetaanko kaikki laitteelle ladatut syvyyskäyrät?')) return;
+    for (const id of Object.keys(syv.osat)) await DB.del('kv', 'syvyys-' + id);
+    syv.osat = {}; ilmoita('Syvyyskäyrät poistettu.'); piirra();
+  }
+});
 
 // ---------- nopeusrajoitusalueet ----------
 // Alueet tulevat väylätietojen mukana (vayla.rajoitukset). Jokaisella paikannuksella katsotaan, ollaanko rajoitusalueella.
@@ -1624,6 +1772,7 @@ async function alku() {
   window.addEventListener('offline', merkit);
   window.addEventListener('resize', () => { document.documentElement.style.setProperty('--ylak', $('#yla').offsetHeight + 'px'); karttaUudelleen(); });
   vaylatMuistiin().then(v => { if (v && kLive) kLive.pyyda(); }).catch(() => { });
+  if (T.as.syvyys) syvyysMuistiin().then(() => { if (kLive) kLive.pyyda(); }).catch(() => { });
   if (T.as.seuranta && !/[?&]testi/.test(location.search)) seurantaPaalle(true);
   // Kallistusmittari käyntiin. iPhonessa anturilupa vaatii kosketuksen, joten siellä odotetaan ensimmäistä napautusta.
   if (T.as.kallistus) kallAutomaatti();
