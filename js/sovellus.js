@@ -23,7 +23,7 @@ const KULULAJIT = ['Satama ja laituri', 'Huolto ja varaosat', 'Varusteet', 'Vaku
 function uusiTila() {
   return { vene: { nimi: '', tunnit0: 0, mpk0: 0, syvays: null, nopeus: 10 }, koti: null, reitit: [], paikat: [], kalapaikat: [], tankkaukset: [], kulut: [],
     huollot: HUOLLOT.map((h, i) => ({ id: 'h' + i, nimi: h[0], valiH: h[1], valiKk: h[2], tehtyPvm: null, tehtyH: null })),
-    as: { auto: true, pysMin: 15, seuranta: false, kartta: 's57', karttaV: 2, keulaYlos: false, kartta3d: false, yksikko: 'kn', kallistus: false, kallNolla: null, rajoitus: true, reittiSeuranta: true, reittiSivu: 200, suuntaviiva: true, syvyys: false, kalapaikat: true, tuuli: false, ais: false, satamat: false, luiskat: false, saunat: true }, saajono: [], kopio: null };
+    as: { auto: true, pysMin: 15, seuranta: false, kartta: 's57', karttaV: 2, keulaYlos: false, kartta3d: false, s57Nimet: true, yksikko: 'kn', kallistus: false, kallNolla: null, rajoitus: true, reittiSeuranta: true, reittiSivu: 200, suuntaviiva: true, syvyys: false, kalapaikat: true, tuuli: false, ais: false, satamat: false, luiskat: false, saunat: true }, saajono: [], kopio: null };
 }
 
 // ---------- tallennus ----------
@@ -395,9 +395,9 @@ KARTAT.meri.paalle = KARTAT.satama;
 // Tarkin haettava taso on 15; sitä lähempää näytetään tason 15 pala suurennettuna (nakyZ). Tallennusavaimessa ovat tyyli ja kuvamuoto,
 // jotta eri lähteiden ja tyylien palat eivät sekoitu. Tasot alle 8 otetaan yleiskartasta: koko maan piirto S-57:stä kestää palvelussa kymmeniä sekunteja.
 const S57_R = 20037508.342789244, S57_TYYLI = 'style-id-220';
-function s57Url(z, x, y) {
+function s57Url(z, x, y, tyyli) {
   const s = (2 * S57_R) / 2 ** z, minx = -S57_R + x * s, maxy = S57_R - y * s;
-  return 'https://julkinen.traficom.fi/s57/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=cells&STYLES=' + S57_TYYLI +
+  return 'https://julkinen.traficom.fi/s57/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=cells&STYLES=' + (tyyli || S57_TYYLI) +
     '&SRS=EPSG:3857&BBOX=' + [minx, maxy - s, minx + s, maxy].map(v => v.toFixed(2)).join(',') + '&WIDTH=256&HEIGHT=256&FORMAT=image%2Fpng8';
 }
 // wms = jokainen onnistunut vastaus on kuva (virhe tulee XML:nä), tyhja = tätä pienempi pala on tyhjä tai yksivärinen (mitattu 520–534 tavua),
@@ -413,7 +413,13 @@ function karttaOletus(vanha) { if (vanha && vanha.karttaV >= 2) return; if (T.as
 // kVenytys: kallistetussa 3D-näkymässä merkit venytetään pystysuunnassa, jotta ne eivät näytä litistyneiltä.
 let kKierto = 0, kVenytys = 1;
 const pysty = (c, x, y) => { c.save(); if (kKierto || kVenytys !== 1) { c.translate(x, y); if (kKierto) c.rotate(-kKierto); if (kVenytys !== 1) c.scale(1, kVenytys); c.translate(-x, -y); } };
-const kartta = () => KARTAT[POHJAT.includes(T.as.kartta) ? T.as.kartta : 's57'];
+// S-57 ilman merimerkkien nimiä ("by Tero", "bn Harakka") ja loistojen tunnuksia ("Fl(1)G 3s 2M"): palvelun tyyli 202. Syvyysluvut ja symbolit ovat samat.
+// Valinta T.as.s57Nimet (kartan valikko). Palat tallentuvat omalla avaimellaan, joten talteen ladattu kartta on valintakohtainen.
+const S57_TYYLI_B = 'style-id-202';
+KARTAT.s57b = Object.assign({}, KARTAT.s57, { avain: 's57|' + S57_TYYLI_B + '|png8', nimi: 'Merikartta S-57 (ilman merimerkkien nimiä)', url: (z, x, y) => z < 8 ? KARTAT.meri.url(z, x, y) : s57Url(z, x, y, S57_TYYLI_B) });
+const s57K = () => T.as.s57Nimet === false ? KARTAT.s57b : KARTAT.s57;
+const pohja = () => POHJAT.includes(T.as.kartta) ? T.as.kartta : 's57';
+const kartta = () => pohja() === 's57' ? s57K() : KARTAT[pohja()];
 const latausKartta = () => kartta().talteen ? kartta() : KARTAT.meri;      // talteen ladataan valittu merikartta
 const ylaZ = K => K.nakyZ || K.maxZ + 1.5;
 const laattaAvain = K => (K.avain || K.id) + '/';
@@ -434,7 +440,7 @@ function karttaHtml(id, paa) {
   return '<div class="kortti"><div class="karttak"><canvas class="kartta' + (paa ? ' paa' : '') + '" id="' + id + '"></canvas><div class="knapit">' +
     '<button data-a="keskita" id="' + id + 'K" aria-label="' + (paa ? 'Keskitä veneeseen' : 'Näytä koko reitti') + '" title="' + (paa ? 'Keskitä veneeseen' : 'Näytä koko reitti') + '">' + KESKITA + '</button>' +
     '<button data-a="zoom" data-id="1" aria-label="Lähennä">+</button><button data-a="zoom" data-id="-1" aria-label="Loitonna">−</button></div></div>' +
-    '<div class="ktyo"><select data-c="kartta">' + POHJAT.map(k => '<option value="' + k + '"' + (KARTAT[k] === kartta() ? ' selected' : '') + '>' + KARTAT[k].nimi + '</option>').join('') + '</select>' +
+    '<div class="ktyo"><select data-c="kartta">' + POHJAT.map(k => '<option value="' + k + '"' + (k === pohja() ? ' selected' : '') + '>' + KARTAT[k].nimi + '</option>').join('') + '</select>' +
     '</div><div class="pieni">' + kartta().tekija + '</div></div>';
 }
 
@@ -740,10 +746,10 @@ const ALUEET = [
   { id: 'paijanne', nimi: 'Päijänne', kuvaus: 'Lahdesta ja Heinolasta Jyväskylään', avain: 'vaylat-paijanne', vaylaMt: 3, kartta: 'meri', b: { lo0: 24.9, lo1: 26.1, la0: 60.95, la1: 62.30 } },
   { id: 'nasijarvi', nimi: 'Näsijärvi', kuvaus: 'Tampereelta Ruovedelle ja Virroille', avain: 'vaylat-nasijarvi', vaylaMt: 2, kartta: 'meri', b: { lo0: 23.4, lo1: 24.2, la0: 61.45, la1: 62.30 } }
 ];
-const alueKartta = a => a.kartta ? KARTAT[a.kartta] : latausKartta();
+const alueKartta = a => a.kartta === 's57' ? s57K() : a.kartta ? KARTAT[a.kartta] : latausKartta();
 // Näytettävä karttapohja kartan keskikohdassa: S-57:n katvealueilla (Päijänne, Näsijärvi) näytetään automaattisesti vanha merikartta.
 function nayttoKartta(v) {
-  const K = kartta(); if (K !== KARTAT.s57) return K;
+  const K = kartta(); if (!K.wms) return K;
   for (const a of ALUEET) if (a.kartta === 'meri' && v.lon >= a.b.lo0 && v.lon < a.b.lo1 && v.lat >= a.b.la0 && v.lat < a.b.la1) return KARTAT.meri;
   return K;
 }
@@ -890,7 +896,9 @@ const A = {
   // Kartan asetukset: karttapohjan vaihto ja karttojen lataus talteen.
   kartat() {
     const d = $('#dlg');
-    d.innerHTML = '<form method="dialog"><h3>Kartta</h3><label>Karttapohja<select id="kPohja">' + POHJAT.map(k => '<option value="' + k + '"' + (KARTAT[k] === kartta() ? ' selected' : '') + '>' + KARTAT[k].nimi + '</option>').join('') + '</select></label>' +
+    d.innerHTML = '<form method="dialog"><h3>Kartta</h3><label>Karttapohja<select id="kPohja">' + POHJAT.map(k => '<option value="' + k + '"' + (k === pohja() ? ' selected' : '') + '>' + KARTAT[k].nimi + '</option>').join('') + '</select></label>' +
+      '<label class="cb"><input type="checkbox" id="kNimet"' + (T.as.s57Nimet !== false ? ' checked' : '') + '>Merimerkkien nimet ja loistojen tunnukset (S-57)</label>' +
+      '<div class="pieni">Ilman valintaa kartalta jäävät pois tekstit kuten "by Tero" ja "Fl(1)G 3s 2M". Talteen ladattu kartta on valintakohtainen: ilman verkkoa näkyy se versio, joka oli valittuna latauksen aikana.</div>' +
       [["tuuli","Tuuli ja sää","Tuulinuolet, puuskat, lämpötila ja aallonkorkeus kartalla; ennuste 24 tuntia eteenpäin."],["ais","Muut alukset (AIS)","Lähialueen alukset kartalla. Päivittyy noin minuutin välein."],["satamat","Satamat ja polttoaineasemat","Venesatamat palvelutietoineen. Haetaan kerran ja jää talteen."],["luiskat","Veneenlaskuluiskat","Paikat, joissa veneen voi laskea trailerilta veteen."],["saunat","Yleiset saunat saarissa","Helsingin ja Espoon edustan saarten yleiset ja varattavat saunat."]].map(k => '<label class="cb"><input type="checkbox" data-lisa="' + k[0] + '"' + (T.as[k[0]] ? ' checked' : '') + '>' + k[1] + '</label>').join('') +
       '<label class="cb"><input type="checkbox" id="kKall"' + (T.as.kallistus ? ' checked' : '') + '>Näytä kallistusmittari kartalla</label>' +
       '<label class="cb"><input type="checkbox" id="kSuuntaviiva"' + (T.as.suuntaviiva ? ' checked' : '') + '>Veneen suuntaviiva</label>' +
@@ -904,6 +912,7 @@ const A = {
       '<button type="button" class="nappi" id="kAlue">Lataa näkyvä alue talteen</button>' +
       '<div class="napit"><button type="button" class="nappi paa" id="kSulje">Sulje</button></div></form>';
     d.querySelector('#kPohja').onchange = async ev => { T.as.kartta = ev.target.value; await talletaT(); piirra(); };
+    d.querySelector('#kNimet').onchange = async ev => { T.as.s57Nimet = ev.target.checked; await talletaT(); karttaUudelleen(); };
     d.querySelectorAll('[data-lisa]').forEach(el => el.onchange = async () => { T.as[el.dataset.lisa] = el.checked; await talletaT(); if (kLive) kLive.piirra(); lisatPaivita(); });
     d.querySelector('#kKall').onchange = async ev => { T.as.kallistus = ev.target.checked && await kallPaalle(); if (!T.as.kallistus) kallPois(); ev.target.checked = T.as.kallistus; await talletaT(); paivitaKall(true); };
     d.querySelector('#kSuuntaviiva').onchange = async ev => { T.as.suuntaviiva = ev.target.checked; await talletaT(); karttaUudelleen(); };
