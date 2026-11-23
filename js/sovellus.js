@@ -370,7 +370,7 @@ function merkit() {
   $('#verkko').textContent = navigator.onLine ? '' : 'ei verkkoa';
 }
 function piirra() {
-  const f = { kartta: nKartta, matka: nMatka, loki: nLoki, yksi: nYksi, polttoaine: nKulut, huolto: nHuolto, lisaa: nLisaa }[nakyma] || nKartta;
+  const f = { kartta: nKartta, matka: nMatka, loki: nLoki, yksi: nYksi, polttoaine: nKulut, huolto: nHuolto, opas: nOpas, lisaa: nLisaa }[nakyma] || nKartta;
   $('#sisalto').classList.toggle('taysi', nakyma === 'kartta');
   document.documentElement.style.setProperty('--ylak', $('#yla').offsetHeight + 'px');
   $('#sisalto').innerHTML = f();
