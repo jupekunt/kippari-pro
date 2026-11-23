@@ -23,7 +23,7 @@ const KULULAJIT = ['Satama ja laituri', 'Huolto ja varaosat', 'Varusteet', 'Vaku
 function uusiTila() {
   return { vene: { nimi: '', tunnit0: 0, mpk0: 0, syvays: null, nopeus: 10 }, koti: null, reitit: [], paikat: [], kalapaikat: [], tankkaukset: [], kulut: [],
     huollot: HUOLLOT.map((h, i) => ({ id: 'h' + i, nimi: h[0], valiH: h[1], valiKk: h[2], tehtyPvm: null, tehtyH: null })),
-    as: { auto: true, pysMin: 15, seuranta: false, kartta: 'meri', yksikko: 'kn', kallistus: false, kallNolla: null, rajoitus: true, reittiSeuranta: true, reittiSivu: 200, suuntaviiva: true, syvyys: false, kalapaikat: true, tuuli: false, ais: false, satamat: false, luiskat: false, saunat: true }, saajono: [], kopio: null };
+    as: { auto: true, pysMin: 15, seuranta: false, kartta: 's57', karttaV: 2, keulaYlos: false, yksikko: 'kn', kallistus: false, kallNolla: null, rajoitus: true, reittiSeuranta: true, reittiSivu: 200, suuntaviiva: true, syvyys: false, kalapaikat: true, tuuli: false, ais: false, satamat: false, luiskat: false, saunat: true }, saajono: [], kopio: null };
 }
 
 // ---------- tallennus ----------
@@ -234,6 +234,7 @@ function nKartta() {
   return '<div class="kokok' + (reitti || omaR ? ' onreitti' : '') + '"><canvas class="kartta taysi" id="lKartta"></canvas>' +
     '<div class="kyla"><div class="kmittari"><div class="knop"><b id="kNopeus">–</b><span>' + NY() + '</span></div><div class="ksuu"><b id="kSuunta">–</b><span id="kIlmans"></span></div><div class="kraj" id="kRaja" data-a="rajoitusTiedot" hidden><i id="kRajaLuku"></i><span id="kRajaS"></span></div><div class="kkal" id="kKalRivi" hidden><em class="kvene"><i id="kKalViiva"><svg viewBox="0 0 40 34" aria-hidden="true"><path d="M20 2v7" stroke="#12222f" stroke-width="1.6" stroke-linecap="round"/><path d="M12.5 17l2-8h11l2 8z" fill="#cfe6ec" stroke="#0b7a8f" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 17h32l-3.5 8.5q-12.5 5-25 0z" fill="#0b7a8f" stroke="#075565" stroke-width="1.2" stroke-linejoin="round"/><rect x="18" y="24" width="4" height="7" rx="1.2" fill="#12222f"/></svg></i></em><b id="kKal">–</b><span id="kKalS"></span></div></div><button class="ktuuli" id="kTuuli" data-a="tuuliAika" hidden title="Vaihda ennusteen ajankohtaa"><b></b><span></span></button></div>' +
     '<div class="knapit"><button data-a="keskita" id="lKarttaK" aria-label="Keskitä veneeseen" title="Keskitä veneeseen">' + KESKITA + '</button>' +
+    '<button data-a="kompassi" id="kKompassi" aria-label="Käännä kartta kulkusuuntaan" title="Käännä kartta kulkusuuntaan"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.6"/><path d="M12 3.6l3.1 8.4H8.9z" fill="#e01b24" stroke="none"/><path d="M12 20.4L8.9 12h6.2z" fill="#9aa7b1" stroke="none"/></svg></button>' +
     '<button data-a="zoom" data-id="1" aria-label="Lähennä">+</button><button data-a="zoom" data-id="-1" aria-label="Loitonna">−</button>' +
     '<button data-a="reitti" aria-label="Reittisuunnittelu" title="Reittisuunnittelu"><svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H14a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h5.5"/></svg></button>' +
     '<button data-a="kalapaikka" aria-label="Lisää kalapaikka" title="Lisää kalapaikka"><svg viewBox="0 0 24 24"><path d="M2.5 12c2.6-4.6 8.6-6 13-2.6L20.5 6v12l-5-3.4c-4.4 3.4-10.4 2-13-2.6z"/><circle cx="7.5" cy="11" r=".9" fill="currentColor"/></svg></button>' +
@@ -384,13 +385,37 @@ function piirra() {
 // Karttapohjat. Merikartta on Traficomin avoin rasterimerikartta (WMTS), maastokartta OpenStreetMap.
 // Merikartan palat tallennetaan laitteelle (IndexedDB "laatat"), joten katsottu tai ladattu alue toimii ilman verkkoa.
 const KARTAT = {
-  meri: { id: 'meri', nimi: 'Merikartta', maxZ: 15, talteen: true, tekija: 'Merikartta © Traficom, CC BY 4.0. Ei navigointiin.',
+  meri: { id: 'meri', nimi: 'Merikartta (vanha)', maxZ: 15, talteen: true, tekija: 'Merikartta © Traficom, CC BY 4.0. Ei navigointiin.',
     url: (z, x, y) => 'https://julkinen.traficom.fi/rasteripalvelu/wmts?service=WMTS&request=GetTile&version=1.0.0&layer=Traficom%3A' + (z < 10 ? 'Yleiskartat%20250k' : 'Merikarttasarjat') + '%20public&style=&tilematrixset=WGS84_Pseudo-Mercator&tilematrix=WGS84_Pseudo-Mercator%3A' + z + '&tilerow=' + y + '&tilecol=' + x + '&format=image%2Fpng' },
   satama: { id: 'satama', minZ: 14, talteen: true, url: (z, x, y) => 'https://julkinen.traficom.fi/rasteripalvelu/wmts?service=WMTS&request=GetTile&version=1.0.0&layer=Traficom%3ASatamakartat&style=&tilematrixset=WGS84_Pseudo-Mercator&tilematrix=WGS84_Pseudo-Mercator%3A' + z + '&tilerow=' + y + '&tilecol=' + x + '&format=image%2Fpng' },
   maa: { id: 'maa', nimi: 'Maastokartta', maxZ: 17, talteen: false, tekija: 'Kartta © OpenStreetMapin tekijät. Näkyy vain verkossa.', url: (z, x, y) => 'https://tile.openstreetmap.org/' + z + '/' + x + '/' + y + '.png' }
 };
 KARTAT.meri.paalle = KARTAT.satama;
-const kartta = () => T.as.kartta === 'maa' ? KARTAT.maa : KARTAT.meri;
+// Merikartta S-57: Traficomin S-57-katselupalvelu (WMS). Palvelu piirtää kuvan pyynnöstä, joten pala pyydetään XYZ-palan rajoilla (EPSG:3857-metreinä).
+// Tarkin haettava taso on 15; sitä lähempää näytetään tason 15 pala suurennettuna (nakyZ). Tallennusavaimessa ovat tyyli ja kuvamuoto,
+// jotta eri lähteiden ja tyylien palat eivät sekoitu. Tasot alle 8 otetaan yleiskartasta: koko maan piirto S-57:stä kestää palvelussa kymmeniä sekunteja.
+const S57_R = 20037508.342789244, S57_TYYLI = 'style-id-220';
+function s57Url(z, x, y) {
+  const s = (2 * S57_R) / 2 ** z, minx = -S57_R + x * s, maxy = S57_R - y * s;
+  return 'https://julkinen.traficom.fi/s57/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=cells&STYLES=' + S57_TYYLI +
+    '&SRS=EPSG:3857&BBOX=' + [minx, maxy - s, minx + s, maxy].map(v => v.toFixed(2)).join(',') + '&WIDTH=256&HEIGHT=256&FORMAT=image%2Fpng8';
+}
+// wms = jokainen onnistunut vastaus on kuva (virhe tulee XML:nä), tyhja = tätä pienempi pala on tyhjä tai yksivärinen (mitattu 520–534 tavua),
+// rinnakkain ja tauko = latauksen tahti, arvio = mittaukset 2026-11-23: Mt / pala ja palaa sekunnissa (vaihteluväli)
+KARTAT.s57 = { id: 's57', avain: 's57|' + S57_TYYLI + '|png8', nimi: 'Merikartta S-57', maxZ: 15, nakyZ: 17.5, talteen: true, wms: true, tyhja: 600, rinnakkain: 2, tauko: 80,
+  tekija: 'Lähde: Traficom. Ei navigointikäyttöön. Ei täytä asianmukaisen merikartan vaatimuksia.',
+  arvio: { pala: 0.022, osuus: 0.6, k14: 0.014, k15: 0.005, nopeus: [1, 2] },
+  url: (z, x, y) => z < 8 ? KARTAT.meri.url(z, x, y) : s57Url(z, x, y) };
+const POHJAT = ['s57', 'meri', 'maa'];
+// Oletuspohja vaihtui S-57:ään 2026-11-23: aiemmin tallennettu oletus (vanha merikartta) vaihdetaan kerran, sen jälkeen käyttäjän valinta pysyy.
+function karttaOletus(vanha) { if (vanha && vanha.karttaV >= 2) return; if (T.as.kartta === 'meri') T.as.kartta = 's57'; T.as.karttaV = 2; }
+// Kartan kierto piirron aikana (radiaaneina): pysty() kääntää merkin ja sen tekstin takaisin pystyyn, kun kartta on käännetty kulkusuuntaan.
+let kKierto = 0;
+const pysty = (c, x, y) => { c.save(); if (kKierto) { c.translate(x, y); c.rotate(-kKierto); c.translate(-x, -y); } };
+const kartta = () => KARTAT[POHJAT.includes(T.as.kartta) ? T.as.kartta : 's57'];
+const latausKartta = () => kartta().talteen ? kartta() : KARTAT.meri;      // talteen ladataan valittu merikartta
+const ylaZ = K => K.nakyZ || K.maxZ + 1.5;
+const laattaAvain = K => (K.avain || K.id) + '/';
 // Traficom palauttaa kartoittamattomalta alueelta läpinäkyvän palan: sellainen tulkitaan puuttuvaksi.
 function tyhjaKuva(im) {
   const c = tyhjaKuva.c || (tyhjaKuva.c = document.createElement('canvas').getContext('2d', { willReadFrequently: true }));
@@ -408,7 +433,7 @@ function karttaHtml(id, paa) {
   return '<div class="kortti"><div class="karttak"><canvas class="kartta' + (paa ? ' paa' : '') + '" id="' + id + '"></canvas><div class="knapit">' +
     '<button data-a="keskita" id="' + id + 'K" aria-label="' + (paa ? 'Keskitä veneeseen' : 'Näytä koko reitti') + '" title="' + (paa ? 'Keskitä veneeseen' : 'Näytä koko reitti') + '">' + KESKITA + '</button>' +
     '<button data-a="zoom" data-id="1" aria-label="Lähennä">+</button><button data-a="zoom" data-id="-1" aria-label="Loitonna">−</button></div></div>' +
-    '<div class="ktyo"><select data-c="kartta">' + ['meri', 'maa'].map(k => '<option value="' + k + '"' + (KARTAT[k] === kartta() ? ' selected' : '') + '>' + KARTAT[k].nimi + '</option>').join('') + '</select>' +
+    '<div class="ktyo"><select data-c="kartta">' + POHJAT.map(k => '<option value="' + k + '"' + (KARTAT[k] === kartta() ? ' selected' : '') + '>' + KARTAT[k].nimi + '</option>').join('') + '</select>' +
     '</div><div class="pieni">' + kartta().tekija + '</div></div>';
 }
 
@@ -416,7 +441,7 @@ function karttaHtml(id, paa) {
 const muisti = new Map();
 function haeLaatta(K, z, x, y, lataa) {
   // lataa: true / undefined = laitteelta tai verkosta, 'db' = vain laitteelle tallennettu (ei verkkohakua), false = vain jo muistissa oleva
-  const avain = K.id + '/' + z + '/' + x + '/' + y, vainDb = lataa === 'db'; let m = muisti.get(avain);
+  const avain = laattaAvain(K) + z + '/' + x + '/' + y, vainDb = lataa === 'db'; let m = muisti.get(avain);
   // eiDb = palaa ei ole laitteella, verkosta ei ole vielä kysytty: täysi haku saa yrittää verkkoa
   if (m && !(m.eiDb && !vainDb && lataa !== false)) return m.im || (m.ei || m.eiDb ? null : undefined);
   if (lataa === false) return undefined;
@@ -463,24 +488,40 @@ function laattaLista(b, z0, z1) {
   return l;
 }
 async function lataaLaatat(lista, edistys, tila) {
-  const K = KARTAT.meri; let i = 0, ok = 0, ennestaan = 0, puuttuu = 0;
+  // tila.K = ladattava karttapohja (oletus: valittu merikartta). Jo tallessa olevat palat ohitetaan, joten keskeytynyt lataus jatkuu siitä, mihin jäi.
+  // edistys(tehty, kaikki, lisa): lisa = ladattu määrä ja arvio jäljellä olevasta ajasta.
+  const K = tila.K || latausKartta(), e = laattaAvain(K), t0 = Date.now(); let i = 0, ok = 0, ennestaan = 0, puuttuu = 0, perakkain = 0;
+  const lisa = () => {
+    let s = tila.tavut ? ' · ladattu ' + (tila.tavut < 10485760 ? (tila.tavut / 1048576).toFixed(1).replace('.', ',') : Math.round(tila.tavut / 1048576)) + ' Mt' : '';
+    if (ok >= 20) { const min = (Date.now() - t0) / ok * (lista.length - i) / 60000; s += ' · jäljellä noin ' + (min < 1.5 ? 'minuutti' : min < 90 ? Math.round(min) + ' min' : (min / 60).toFixed(1).replace('.', ',') + ' h'); }
+    return s;
+  };
   const tyo = async () => {
     while (i < lista.length && !tila.peru) {
-      const [z, x, y] = lista[i++], avain = 'meri/' + z + '/' + x + '/' + y;
+      const [z, x, y] = lista[i++], avain = e + z + '/' + x + '/' + y;
       try {
         if (await DB.onko('laatat', avain)) ennestaan++;
-        else { const b = await haeKuva(K.url(z, x, y), 4, true); if (b) { await DB.put('laatat', b, avain); ok++; } else puuttuu++; }
+        else {
+          const b = await haeKuva(K.url(z, x, y), 4, true);
+          if (b) { await DB.put('laatat', b, avain); ok++; perakkain = 0; tila.tavut = (tila.tavut || 0) + b.size; }
+          else {
+            puuttuu++;
+            // WMS-palvelusta jokainen pala pitäisi saada: usea peräkkäinen virhe tarkoittaa, että palvelu tai yhteys ei toimi
+            if (K.wms && ++perakkain >= 8) { tila.virhe = true; tila.peru = true; }
+          }
+          if (K.tauko) await new Promise(o => setTimeout(o, K.tauko));
+        }
         const S = K.paalle, sa = 'satama/' + z + '/' + x + '/' + y;       // tarkimmilla tasoilla myös satamakartta
-        if (z >= S.minZ && !(await DB.onko('laatat', sa))) {
+        if (S && z >= S.minZ && !(await DB.onko('laatat', sa))) {
           // tasolla 15 satamakartta haetaan vain, jos tason 14 emopalassa on karttaa: satamakarttoja on vain pienillä alueilla
           const emo = z > S.minZ ? await DB.get('laatat', 'satama/' + (z - 1) + '/' + (x >> 1) + '/' + (y >> 1)) : null;
           if (z === S.minZ || (emo && emo.size > TYHJA_PALA) || tila.kaikkiSatamat) { const b = await haeKuva(S.url(z, x, y), 4, true); if (b) await DB.put('laatat', b, sa); }
         }
       } catch (x) { puuttuu++; if (x && x.name === 'QuotaExceededError') { tila.taynna = true; tila.peru = true; } }
-      edistys(ok + ennestaan + puuttuu, lista.length);
+      edistys(ok + ennestaan + puuttuu, lista.length, lisa());
     }
   };
-  await Promise.all([tyo(), tyo(), tyo(), tyo()]);
+  await Promise.all(Array.from({ length: K.rinnakkain || 4 }, tyo));
   for (const [k, m] of muisti) if (m.ei || m.eiDb) muisti.delete(k);      // aiemmin puuttuneet haetaan uudelleen
   return { ok, ennestaan, puuttuu };
 }
@@ -494,16 +535,20 @@ class Kartta {
     let z = kartta().maxZ; for (; z > 3; z--) if (mx(lo1, z) - mx(lo0, z) <= W - 60 && my(la0, z) - my(la1, z) <= H - 60) break;
     v.z = z; v.lon = (lo0 + lo1) / 2; v.lat = latY((my(la0, 0) + my(la1, 0)) / 2, 0);
   }
+  // Kulkusuuntaan käännetty kartta (kierto radiaaneina, 0 = pohjoinen ylhäällä): piirtoalue on näyttöä suurempi neliö, jota käännetään näytön keskipisteen ympäri.
+  koko() { const W = this.cv.clientWidth, H = this.cv.clientHeight, D = this.kierto ? Math.ceil(Math.hypot(W, H)) : 0; return [W, H, D || W, D || H]; }
+  // näytön kohta -> piirtoalueen kohta (sama kuin näytön kohta, kun karttaa ei ole käännetty)
+  virt(x, y) { const [W, H, vW, vH] = this.koko(), k = this.kierto || 0, sx = x - W / 2, sy = y - H / 2, co = Math.cos(k), si = Math.sin(k); return [sx * co + sy * si + vW / 2, sy * co - sx * si + vH / 2]; }
   pyyda() { if (!this.raf) this.raf = requestAnimationFrame(() => { this.raf = 0; this.piirra(); }); }
-  siirra(dx, dy) { const v = this.v; v.lon = lonX(mx(v.lon, v.z) + dx, v.z); v.lat = rajaa(latY(my(v.lat, v.z) + dy, v.z), -80, 84); v.seuraa = false; this.pyyda(); if (this.onMuutos) this.onMuutos(); }
+  siirra(dx, dy) { const v = this.v, k = this.kierto || 0; if (k) { const co = Math.cos(k), si = Math.sin(k); [dx, dy] = [dx * co + dy * si, dy * co - dx * si]; } v.lon = lonX(mx(v.lon, v.z) + dx, v.z); v.lat = rajaa(latY(my(v.lat, v.z) + dy, v.z), -80, 84); v.seuraa = false; this.pyyda(); if (this.onMuutos) this.onMuutos(); }
   // kx, ky = kohta, jonka ympäri zoomataan (sormien keskipiste); seuratessa aina veneen ympäri
   zoomaa(dz, kx, ky) {
-    const v = this.v, W = this.cv.clientWidth, H = this.cv.clientHeight, z1 = rajaa(v.z + dz, 4, kartta().maxZ + 1.5);
+    const v = this.v, W = this.cv.clientWidth, H = this.cv.clientHeight, z1 = rajaa(v.z + dz, 4, ylaZ(nayttoKartta(v)));
     if (z1 === v.z) return;
     // Zoomataan sormien tai hiiren kohtaan. Venettä seurataan edelleen vain, jos kohta on veneen vieressä.
     if (kx != null && v.seuraa && Math.hypot(kx - W / 2, ky - H / 2) > 70) { v.seuraa = false; if (this.onMuutos) this.onMuutos(); }
     if (kx == null || v.seuraa) v.z = z1;
-    else { const lon = lonX(mx(v.lon, v.z) + kx - W / 2, v.z), lat = latY(my(v.lat, v.z) + ky - H / 2, v.z); v.z = z1; v.lon = lonX(mx(lon, z1) - (kx - W / 2), z1); v.lat = latY(my(lat, z1) - (ky - H / 2), z1); }
+    else { const q = this.virt(kx, ky), m = this.koko(), ux = q[0] - m[2] / 2, uy = q[1] - m[3] / 2, lon = lonX(mx(v.lon, v.z) + ux, v.z), lat = latY(my(v.lat, v.z) + uy, v.z); v.z = z1; v.lon = lonX(mx(lon, z1) - ux, z1); v.lat = latY(my(lat, z1) - uy, z1); }
     this.pyyda();
   }
   _kuuntele() {
@@ -525,18 +570,21 @@ class Kartta {
     });
     const loppu = e => { os.delete(e.pointerId); };
     cv.addEventListener('pointerup', e => {
-      if (os.size === 1 && !veto && napautusCb && this === kLive) { const k = kohta(e), v = this.v, W = cv.clientWidth, H = cv.clientHeight; napautusCb(latY(my(v.lat, v.z) + k[1] - H / 2, v.z), lonX(mx(v.lon, v.z) + k[0] - W / 2, v.z)); }
-      else if (os.size === 1 && !veto && this === kLive) { const k = kohta(e); karttaNapautus(k[0], k[1]); }
+      if (os.size === 1 && !veto && napautusCb && this === kLive) { const k = this.virt(...kohta(e)), v = this.v, m = this.koko(); napautusCb(latY(my(v.lat, v.z) + k[1] - m[3] / 2, v.z), lonX(mx(v.lon, v.z) + k[0] - m[2] / 2, v.z)); }
+      else if (os.size === 1 && !veto && this === kLive) { const k = this.virt(...kohta(e)); karttaNapautus(k[0], k[1]); }
       loppu(e);
     });
     cv.addEventListener('pointercancel', loppu);
     cv.addEventListener('wheel', e => { e.preventDefault(); const k = kohta(e); this.zoomaa(-e.deltaY / 300, k[0], k[1]); }, { passive: false });
   }
   piirra() {
-    const cv = this.cv, v = this.v, K = kartta(), W = cv.clientWidth, H = cv.clientHeight; if (!W || !cv.isConnected) return;
-    const dpr = window.devicePixelRatio || 1; cv.width = W * dpr; cv.height = H * dpr;
+    const cv = this.cv, v = this.v, K = nayttoKartta(v), [Wr, Hr, W, H] = this.koko(); if (!Wr || !cv.isConnected) return;
+    const dpr = window.devicePixelRatio || 1; cv.width = Wr * dpr; cv.height = Hr * dpr;
     const c = cv.getContext('2d'); c.scale(dpr, dpr);
-    v.z = rajaa(v.z, 4, K.maxZ + 1.5);
+    // W ja H ovat tästä eteenpäin piirtoalueen koko: käännetyssä kartassa näyttöä suurempi neliö, muuten näytön koko
+    const kierto = this.kierto || 0; kKierto = kierto; cv.dataset.kierto = Math.round(kierto / RAD);
+    if (kierto) { c.translate(Wr / 2, Hr / 2); c.rotate(kierto); c.translate(-W / 2, -H / 2); }
+    v.z = rajaa(v.z, 4, ylaZ(K));
     // Tarkempaan tasoon vaihdetaan jo hieman ennen puoliväliä, jotta kuva pysyy terävänä.
     const zi = rajaa(Math.round(v.z + .25), 3, K.maxZ), L = 256 * 2 ** (v.z - zi), ox = mx(v.lon, v.z) - W / 2, oy = my(v.lat, v.z) - H / 2, n = 2 ** zi; let piirretty = 0, tarkkoja = 0;
     for (let tx = Math.floor(ox / L); tx <= Math.floor((ox + W) / L); tx++) for (let ty = Math.floor(oy / L); ty <= Math.floor((oy + H) / L); ty++) {
@@ -593,7 +641,9 @@ class Kartta {
     c.restore();
   }
 }
-const seuraaMerkki = () => { const b = $('#lKarttaK'); if (b) b.classList.toggle('on', lv.seuraa); };
+const seuraaMerkki = () => { const b = $('#lKarttaK'); if (b) b.classList.toggle('on', lv.seuraa); const k = $('#kKompassi'); if (k) { k.classList.toggle('on', !!T.as.keulaYlos); k.firstElementChild.style.transform = 'rotate(' + (kLive && kLive.kierto ? kLive.kierto / RAD : 0) + 'deg)'; } };
+// Kompassinappi: kartta käännetään niin, että veneen kulkusuunta osoittaa ylös. Kulkusuunta tiedetään vasta, kun vene liikkuu.
+const kiertoNyt = () => T.as.keulaYlos && kulku != null ? -kulku * RAD : 0;
 function karttaUudelleen() {
   if (nakyma === 'yksi' && kYksi && kYksi.cv.isConnected) kYksi.piirra();
   if (nakyma === 'kartta') { lk = null; liveKartta(); }
@@ -603,7 +653,7 @@ function karttaUudelleen() {
 function liveKartta() {
   const cv = $('#lKartta'); if (!cv) return;
   if (!kLive || kLive.cv !== cv) { kLive = new Kartta(cv, lv); kLive.onMuutos = seuraaMerkki; lk = null; }
-  kLive.reitti = reitti && !omaR ? reitti.r.pisteet : null; kLive.lisat = piirraLisat; kLive.suuntaviiva = T.as.suuntaviiva; kLive.reittiKohta = !omaR && seurPaalla() && seur.aktiivinen ? seur.k : null;      // omaa reittiä muokatessa näytetään vain muokattava reitti
+  kLive.reitti = reitti && !omaR ? reitti.r.pisteet : null; kLive.lisat = piirraLisat; kLive.suuntaviiva = T.as.suuntaviiva; kLive.reittiKohta = !omaR && seurPaalla() && seur.aktiivinen ? seur.k : null; kLive.kierto = kiertoNyt();      // omaa reittiä muokatessa näytetään vain muokattava reitti
   const f = gps.viime, paalla = watchId != null || tal.tila === 'matka';
   if (!f || !paalla) {            // ei sijaintia juuri nyt: viimeisin tunnettu paikka, muuten Suomenlahti
     if (lk) return; lk = { tyhja: true };
@@ -621,22 +671,22 @@ function liveKartta() {
   if (lv.alussa) { lv.z = 12; lv.alussa = false; }
   if (lv.seuraa) { lv.lat = f.lat; lv.lon = f.lon; }
   kLive.pts = tal.m ? tal.m.pisteet.concat([[f.t, f.lat, f.lon, f.sog]]) : [];
-  kLive.vene = { lat: f.lat, lon: f.lon, suunta: kulku };
+  kLive.vene = { lat: f.lat, lon: f.lon, suunta: kulku }; kLive.kierto = kiertoNyt();
   kLive.piirra(); seuraaMerkki();
 }
 
 // Kartta-alueen lataus talteen: päänäkymässä näkyvä alue valitulla tarkkuudella.
 const LAATTARAJA = 4000, LAATTAKOKO = 0.09;      // Mt / pala, arvio koelatauksista
 function lataaAlueIkkuna() {
-  if (kartta() !== KARTAT.meri) { ilmoita('Vain merikartan voi ladata talteen. Vaihda karttapohjaksi Merikartta.'); return; }
+  if (!kartta().talteen) { ilmoita('Vain merikartan voi ladata talteen. Vaihda karttapohjaksi Merikartta S-57 tai Merikartta (vanha).'); return; }
   if (!kLive) return;
+  const K = nayttoKartta(lv), palaMt = K.arvio ? K.arvio.pala : LAATTAKOKO;
   if (!navigator.onLine) { ilmoita('Lataus vaatii verkkoyhteyden.'); return; }
-  const W = kLive.cv.clientWidth, H = kLive.cv.clientHeight, v = lv, xk = mx(v.lon, v.z), yk = my(v.lat, v.z);
-  const b = { lo0: lonX(xk - W / 2, v.z), lo1: lonX(xk + W / 2, v.z), la1: latY(yk - H / 2, v.z), la0: latY(yk + H / 2, v.z) };
+  const b = nakymaRajat(kLive);
   const tasot = [[11, 'Yleiskuva', 'reittien suunnitteluun'], [13, 'Tarkka', 'väylät ja merimerkit erottuvat'], [15, 'Tarkin', 'satamat ja kapeikot']].map(t => t.concat(laattaLista(b, 8, t[0]).length));
-  const d = $('#dlg'), tila = { peru: false };
-  d.innerHTML = '<form method="dialog"><h3>Lataa kartta talteen</h3><div class="pieni">Talteen ladataan kartalla nyt näkyvä alue, ja se näkyy sen jälkeen ilman verkkoa. Loitonna tai siirrä karttaa ensin, jos haluat eri alueen. Koot ovat arvioita.</div>' +
-    tasot.map((t, i) => '<label class="cb"><input type="radio" name="taso" value="' + t[0] + '"' + (t[3] > LAATTARAJA ? ' disabled' : '') + '><span><b>' + t[1] + '</b> – ' + t[2] + '<br><span class="pieni">' + (t[3] > LAATTARAJA ? 'liian suuri alue (' + t[3] + ' palaa) – lähennä karttaa' : t[3] + ' palaa, noin ' + Math.max(1, Math.round(t[3] * LAATTAKOKO)) + ' Mt') + '</span></span></label>').join('') +
+  const d = $('#dlg'), tila = { peru: false, K };
+  d.innerHTML = '<form method="dialog"><h3>Lataa kartta talteen</h3><div class="pieni">Talteen ladataan kartalla nyt näkyvä alue (' + K.nimi + '), ja se näkyy sen jälkeen ilman verkkoa. Loitonna tai siirrä karttaa ensin, jos haluat eri alueen. Koot ovat arvioita.</div>' +
+    tasot.map((t, i) => '<label class="cb"><input type="radio" name="taso" value="' + t[0] + '"' + (t[3] > LAATTARAJA ? ' disabled' : '') + '><span><b>' + t[1] + '</b> – ' + t[2] + '<br><span class="pieni">' + (t[3] > LAATTARAJA ? 'liian suuri alue (' + t[3] + ' palaa) – lähennä karttaa' : t[3] + ' palaa, noin ' + Math.max(1, Math.round(t[3] * palaMt)) + ' Mt') + '</span></span></label>').join('') +
     '<progress id="lEd" value="0" max="1" hidden></progress><div class="pieni" id="lTeksti"></div>' +
     '<div class="napit"><button type="button" class="nappi" id="lPeru">Sulje</button><button type="button" class="nappi paa" id="lOk">Lataa</button></div></form>';
   const eka = [...d.querySelectorAll('input[name=taso]')].filter(x => !x.disabled); if (eka.length) eka[Math.min(1, eka.length - 1)].checked = true; else d.querySelector('#lOk').disabled = true;
@@ -646,8 +696,8 @@ function lataaAlueIkkuna() {
     const lista = laattaLista(b, 8, +valinta.value), ed = d.querySelector('#lEd'), tx = d.querySelector('#lTeksti');
     d.querySelector('#lOk').disabled = true; d.querySelectorAll('input[name=taso]').forEach(x => x.disabled = true); d.querySelector('#lPeru').textContent = 'Keskeytä'; ed.hidden = false;
     try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (x) { }
-    const r = await lataaLaatat(lista, (n, kaikki) => { ed.value = n / kaikki; tx.textContent = n + ' / ' + kaikki + ' palaa'; }, tila);
-    tx.textContent = (tila.peru ? 'Keskeytetty. ' : 'Valmis. ') + 'Ladattu ' + r.ok + ', ennestään tallessa ' + r.ennestaan + (r.puuttuu ? ', ei saatavilla ' + r.puuttuu + ' (alueelta ei ole karttaa tai yhteys katkesi)' : '') + '.';
+    const r = await lataaLaatat(lista, (n, kaikki, lisa) => { ed.value = n / kaikki; tx.textContent = n + ' / ' + kaikki + ' palaa' + (lisa || ''); }, tila);
+    tx.textContent = (tila.virhe ? 'Karttapalvelu ei vastaa, lataus pysäytettiin. Yritä myöhemmin uudelleen – jo ladatut palat säilyvät. ' : tila.peru ? 'Keskeytetty. ' : 'Valmis. ') + 'Ladattu ' + r.ok + ', ennestään tallessa ' + r.ennestaan + (r.puuttuu ? ', ei saatavilla ' + r.puuttuu + ' (alueelta ei ole karttaa tai yhteys katkesi)' : '') + '.';
     d.querySelector('#lPeru').textContent = 'Sulje'; karttaUudelleen();
   };
   d.showModal();
@@ -657,39 +707,59 @@ function lataaAlueIkkuna() {
 const ALUEET = [
   { id: 'suomenlahti', nimi: 'Suomenlahti', kuvaus: 'Hangosta Virolahdelle', avain: 'vaylat', vaylaMt: 15, b: { lo0: 22.4, lo1: 28.0, la0: 59.55, la1: 60.70 } },
   { id: 'saaristomeri', nimi: 'Saaristomeri', kuvaus: 'Hangon länsipuolelta Kustaviin ja Kökariin (Turku, Parainen, Nauvo, Korppoo, Utö)', avain: 'vaylat-saaristomeri', vaylaMt: 10, b: { lo0: 20.6, lo1: 22.4, la0: 59.65, la1: 60.70 } },
-  { id: 'selkameri', nimi: 'Selkämeri', kuvaus: 'Uudestakaupungista Kaskisiin', avain: 'vaylat-selkameri', vaylaMt: 5, b: { lo0: 20.6, lo1: 21.85, la0: 60.70, la1: 62.60 } }
+  { id: 'selkameri', nimi: 'Selkämeri', kuvaus: 'Uudestakaupungista Kaskisiin', avain: 'vaylat-selkameri', vaylaMt: 5, b: { lo0: 20.6, lo1: 21.85, la0: 60.70, la1: 62.60 } },
+  // Sisävedet (2026-11-23). kartta = alueen karttapohja: S-57-aineisto kattaa Saimaan, mutta ei Päijännettä eikä Näsijärveä, joilta on vain vanha merikartta.
+  { id: 'saimaa', nimi: 'Saimaa', kuvaus: 'Lappeenrannasta ja Imatralta Mikkeliin, Savonlinnaan, Varkauteen ja Joensuuhun', avain: 'vaylat-saimaa', vaylaMt: 15, kartta: 's57', b: { lo0: 27.0, lo1: 30.0, la0: 61.0, la1: 62.65 } },
+  { id: 'paijanne', nimi: 'Päijänne', kuvaus: 'Lahdesta ja Heinolasta Jyväskylään', avain: 'vaylat-paijanne', vaylaMt: 3, kartta: 'meri', b: { lo0: 24.9, lo1: 26.1, la0: 60.95, la1: 62.30 } },
+  { id: 'nasijarvi', nimi: 'Näsijärvi', kuvaus: 'Tampereelta Ruovedelle ja Virroille', avain: 'vaylat-nasijarvi', vaylaMt: 2, kartta: 'meri', b: { lo0: 23.4, lo1: 24.2, la0: 61.45, la1: 62.30 } }
 ];
+const alueKartta = a => a.kartta ? KARTAT[a.kartta] : latausKartta();
+// Näytettävä karttapohja kartan keskikohdassa: S-57:n katvealueilla (Päijänne, Näsijärvi) näytetään automaattisesti vanha merikartta.
+function nayttoKartta(v) {
+  const K = kartta(); if (K !== KARTAT.s57) return K;
+  for (const a of ALUEET) if (a.kartta === 'meri' && v.lon >= a.b.lo0 && v.lon < a.b.lo1 && v.lat >= a.b.la0 && v.lat < a.b.la1) return KARTAT.meri;
+  return K;
+}
 const SUOMENLAHTI = ALUEET[0].b;
 const alueNapit = luokka => ALUEET.map(a => '<button' + (luokka === 'dlg' ? ' type="button" class="nappi"' : ' class="nappi' + (a === ALUEET[0] ? ' paa' : '') + '" data-a="lataaKokoAlue" data-id="' + a.id + '"') + ' data-alue="' + a.id + '">Lataa ' + a.nimi + ': kartta ja väylätiedot</button>').join('');
 // Tarkat tasot (14 ja 15) koko alueelta vain sieltä, missä kartassa on sisältöä: noin kaksi kolmasosaa paloista on tyhjää avomerta tai maata,
 // ja tyhjän palan tunnistaa tiedoston koosta. Taso kerrallaan: ladataan niiden palojen neljä alipalaa, joissa on karttaa.
 const TYHJA_PALA = 1500;      // tavua: tätä pienempi kuva on tyhjä (tyhjä pala on noin 800 tavua)
 async function lataaTarkat(b, maxZ, edistys, tila) {
+  // S-57 (wms): tyhjän palan raja on pienempi, ja pala, jota ei saatu haettua, ei ole tyhjä – sen alipalat haetaan varmuuden vuoksi.
+  const K = tila.K || latausKartta(), e = laattaAvain(K), raja = K.tyhja || TYHJA_PALA, eiOle = K.wms ? raja + 1 : 0;
   let emot = laattaLista(b, 13, 13); const yht = { ok: 0, ennestaan: 0, puuttuu: 0 };
   for (let z = 14; z <= maxZ && !tila.peru; z++) {
     const lista = [];
     for (let i = 0; i < emot.length && !tila.peru; i += 24) {
-      const koot = await Promise.all(emot.slice(i, i + 24).map(t => DB.get('laatat', 'meri/' + t[0] + '/' + t[1] + '/' + t[2]).then(k => k ? k.size : 0, () => 0)));
-      koot.forEach((koko, j) => { if (koko > TYHJA_PALA) { const t = emot[i + j]; for (const dx of [0, 1]) for (const dy of [0, 1]) lista.push([z, t[1] * 2 + dx, t[2] * 2 + dy]); } });
+      const koot = await Promise.all(emot.slice(i, i + 24).map(t => DB.get('laatat', e + t[0] + '/' + t[1] + '/' + t[2]).then(k => k ? k.size : eiOle, () => eiOle)));
+      koot.forEach((koko, j) => { if (koko > raja) { const t = emot[i + j]; for (const dx of [0, 1]) for (const dy of [0, 1]) lista.push([z, t[1] * 2 + dx, t[2] * 2 + dy]); } });
     }
     if (!lista.length) break;
-    const r = await lataaLaatat(lista, (k, kaikki) => edistys(z, k, kaikki), tila);
+    const r = await lataaLaatat(lista, (k, kaikki, lisa) => edistys(z, k, kaikki, lisa), tila);
     yht.ok += r.ok; yht.ennestaan += r.ennestaan; yht.puuttuu += r.puuttuu; emot = lista;
   }
   return yht;
 }
 async function lataaAlueKokoIkkuna(alue) {
   if (!navigator.onLine) { ilmoita('Lataus vaatii verkkoyhteyden.'); return; }
-  const lista = laattaLista(alue.b, 8, 13), mt = Math.round(lista.length * LAATTAKOKO / 10) * 10, d = $('#dlg'), tila = { peru: false };
+  // K = ladattava merikartta: valittu karttapohja, tai vanha merikartta, jos valittuna on maastokartta
+  const K = alueKartta(alue), ar = K.arvio || { pala: LAATTAKOKO, osuus: 0.33, k14: 0.018, k15: 0.009 };
+  const lista = laattaLista(alue.b, 8, 13), mt = Math.round(lista.length * ar.pala / 10) * 10, d = $('#dlg'), tila = { peru: false, K };
   const min = k => Math.max(5, Math.round(lista.length / 9348 * k / 5) * 5);
-  // arvio tarkkojen tasojen määrästä: Suomenlahden otannassa noin kolmasosassa tason 13 paloista oli karttasisältöä
-  const n13 = laattaLista(alue.b, 13, 13).length, e14 = Math.round(n13 * 0.33 * 4 / 100) * 100, e15 = Math.round(e14 * 4 * 0.85 / 100) * 100, sata = x => Math.max(10, Math.round(x / 10) * 10);
+  // S-57: kesto mitatusta tahdista (palaa sekunnissa, vaihteluväli)
+  const aikaT = m => m < 90 ? Math.max(5, Math.round(m / 5) * 5) + ' min' : (m / 60 < 10 ? (m / 60).toFixed(1).replace('.', ',') : Math.round(m / 60)) + ' h';
+  const kesto = k => aikaT(k / ar.nopeus[1] / 60) + ' – ' + aikaT(k / ar.nopeus[0] / 60);
+  // arvio tarkkojen tasojen määrästä: Suomenlahden otannassa noin kolmasosassa tason 13 paloista oli karttasisältöä (S-57:ssä selvästi useammassa)
+  const n13 = laattaLista(alue.b, 13, 13).length, e14 = Math.round(n13 * ar.osuus * 4 / 100) * 100, e15 = Math.round(e14 * 4 * 0.85 / 100) * 100, sata = x => Math.max(10, Math.round(x / 10) * 10);
   const tarkkuudet = [[13, 'Perus', 'väylät, syvyydet ja merimerkit erottuvat', ''],
-    [14, 'Tarkka', 'lisäksi tarkempi taso rannikolta, saaristosta ja väyliltä', 'noin ' + e14 + ' palaa lisää, arviolta ' + sata(e14 * 0.018) + ' Mt'],
-    [15, 'Tarkin', 'kartan tarkin taso ja satamakartat rannikolta, saaristosta ja väyliltä', 'noin ' + (e14 + e15) + ' palaa lisää, arviolta ' + sata(e14 * 0.018 + e15 * 0.009) + ' Mt ja ' + (e14 + e15 < 22000 ? 'alle tunti' : '1–2 tuntia')]];
+    [14, 'Tarkka', 'lisäksi tarkempi taso rannikolta, saaristosta ja väyliltä', 'noin ' + e14 + ' palaa lisää, arviolta ' + sata(e14 * ar.k14) + ' Mt' + (ar.nopeus ? ' ja ' + kesto(e14) : '')],
+    [15, 'Tarkin', 'kartan tarkin taso' + (K.paalle ? ' ja satamakartat' : '') + ' rannikolta, saaristosta ja väyliltä', 'noin ' + (e14 + e15) + ' palaa lisää, arviolta ' + sata(e14 * ar.k14 + e15 * ar.k15) + ' Mt ja ' + (ar.nopeus ? kesto(e14 + e15) : e14 + e15 < 22000 ? 'alle tunti' : '1–2 tuntia')]];
   let tilaa = '';
   try { const s = await navigator.storage.estimate(); if (s && s.quota) { const vapaa = (s.quota - (s.usage || 0)) / 1048576; tilaa = ' Selain antaa sovellukselle tilaa vielä noin ' + (vapaa > 2000 ? n(vapaa / 1024, 1) + ' Gt' : Math.round(vapaa) + ' Mt') + '.' + (vapaa < mt ? ' <b>Se ei ehkä riitä koko lataukseen.</b>' : ''); } } catch (x) { }
-  d.innerHTML = '<form method="dialog"><h3>Lataa kartta ja väylätiedot: ' + alue.nimi + '</h3><div class="pieni">Merikartta ' + alue.kuvaus + ' tarkkuudella, jolla väylät, syvyydet ja merimerkit erottuvat. ' + lista.length + ' karttapalaa, arviolta ' + mt + ' Mt ja ' + min(15) + '–' + min(40) + ' minuuttia.' + tilaa + '</div>' +
+  d.innerHTML = '<form method="dialog"><h3>Lataa kartta ja väylätiedot: ' + alue.nimi + '</h3><div class="pieni">' + K.nimi + ' ' + alue.kuvaus + ' tarkkuudella, jolla väylät, syvyydet ja merimerkit erottuvat. ' + lista.length + ' karttapalaa, arviolta ' + mt + ' Mt ja ' + (ar.nopeus ? kesto(lista.length) : min(15) + '–' + min(40) + ' minuuttia') + '.' + tilaa + '</div>' +
+    (alue.kartta === 'meri' ? '<div class="pieni">Tältä alueelta ei ole S-57-karttaa, joten talteen ladataan vanha merikartta. Sovellus näyttää sen täällä automaattisesti, vaikka karttapohjaksi on valittu S-57.</div>' : '') +
+    (K.wms ? '<div class="pieni">Karttapalvelu piirtää jokaisen S-57-palan pyynnöstä, joten lataus on selvästi hitaampi kuin vanhalla merikartalla ja paloja haetaan vain kaksi kerrallaan. Ajat ja koot ovat arvioita pienestä otoksesta. Vanhan merikartan palat säilyvät laitteella erikseen.</div>' : '') +
     '<h4>Kartan tarkkuus</h4>' + tarkkuudet.map(t => '<label class="cb"><input type="radio" name="tark" value="' + t[0] + '"' + (t[0] === 13 ? ' checked' : '') + '><span><b>' + t[1] + '</b> – ' + t[2] + (t[3] ? '<br><span class="pieni">' + t[3] + '</span>' : '') + '</span></label>').join('') +
     '<div class="pieni">Perustarkkuudella kartta ei tarkennu ilman verkkoa, kun zoomaat lähelle. Tarkat tasot ladataan vain sieltä, missä kartassa on sisältöä; avomeri jää perustarkkuuteen. Tarkemman tason voi ladata myöhemmin samasta napista – jo ladatut palat ohitetaan.</div>' +
     '<div class="pieni">Samalla ladataan alueen väylät, merimerkit ja nopeusrajoitusalueet (noin ' + alue.vaylaMt + ' Mt), jolloin myös reittisuunnittelu, reitin seuranta ja rajoitusvaroitukset toimivat ilman verkkoa.</div>' +
@@ -702,6 +772,7 @@ async function lataaAlueKokoIkkuna(alue) {
     const maxZ = +((d.querySelector('input[name=tark]:checked') || {}).value || 13);
     d.querySelector('#lOk').disabled = true; d.querySelectorAll('input[name=tark]').forEach(x => x.disabled = true); d.querySelector('#lPeru').textContent = 'Keskeytä'; ed.hidden = false;
     try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (x) { }
+    tila.tavut = 0; tila.virhe = false;
     naytto(true);
     // 1) väylätiedot: haetaan, jos niitä ei ole tai ne ovat yli vuorokauden vanhat (keskeytyneen latauksen jatko ei hae niitä turhaan uudelleen)
     let vt = '';
@@ -711,13 +782,13 @@ async function lataaAlueKokoIkkuna(alue) {
     catch (x) { vt = osa() ? 'Väylätietojen päivitys ei onnistunut, käytössä ovat aiemmat (' + pvm(osa().haettu) + '). ' : 'Väylätietojen lataus ei onnistunut – paina nappia uudelleen. '; }
     window.__vt = vt;
     // 2) karttapalat
-    const r = tila.peru ? { ok: 0, ennestaan: 0, puuttuu: 0 } : await lataaLaatat(lista, (k, kaikki) => { ed.value = k / kaikki; tx.textContent = k + ' / ' + kaikki + ' palaa (' + Math.round(k / kaikki * 100) + ' %)'; }, tila);
+    const r = tila.peru ? { ok: 0, ennestaan: 0, puuttuu: 0 } : await lataaLaatat(lista, (k, kaikki, lisa) => { ed.value = k / kaikki; tx.textContent = k + ' / ' + kaikki + ' palaa (' + Math.round(k / kaikki * 100) + ' %)' + (lisa || ''); }, tila);
     // 3) tarkat tasot sieltä, missä kartassa on sisältöä
-    const rt = !tila.peru && maxZ > 13 ? await lataaTarkat(alue.b, maxZ, (z, k, kaikki) => { ed.value = k / kaikki; tx.textContent = 'Tarkka taso ' + (z - 13) + ' / ' + (maxZ - 13) + ': ' + k + ' / ' + kaikki + ' palaa (' + Math.round(k / kaikki * 100) + ' %)'; }, tila) : null;
+    const rt = !tila.peru && maxZ > 13 ? await lataaTarkat(alue.b, maxZ, (z, k, kaikki, lisa) => { ed.value = k / kaikki; tx.textContent = 'Tarkka taso ' + (z - 13) + ' / ' + (maxZ - 13) + ': ' + k + ' / ' + kaikki + ' palaa (' + Math.round(k / kaikki * 100) + ' %)' + (lisa || ''); }, tila) : null;
     if (watchId == null) naytto(false);
     if (!d.contains(tx)) { karttaUudelleen(); return; }      // ikkuna on jo korvattu toisella
     if (rt) { r.ok += rt.ok; r.ennestaan += rt.ennestaan; r.puuttuu += rt.puuttuu; }
-    tx.textContent = vt + 'Kartta: ' + (tila.taynna ? 'Puhelimen tallennustila loppui kesken. ' : tila.peru ? 'Keskeytetty – jatka painamalla nappia uudelleen. ' : 'Valmis. ') + 'Ladattu ' + r.ok + ', ennestään tallessa ' + r.ennestaan + (r.puuttuu ? ', ei saatavilla ' + r.puuttuu + ' (ei karttaa alueelta tai yhteys katkesi)' : '') + '.';
+    tx.textContent = vt + 'Kartta: ' + (tila.taynna ? 'Puhelimen tallennustila loppui kesken. ' : tila.virhe ? 'Karttapalvelu ei vastaa (useita virheitä peräkkäin), lataus pysäytettiin. Yritä myöhemmin uudelleen samasta napista – jo ladatut palat säilyvät. ' : tila.peru ? 'Keskeytetty – jatka painamalla nappia uudelleen. ' : 'Valmis. ') + 'Ladattu ' + r.ok + ', ennestään tallessa ' + r.ennestaan + (r.puuttuu ? ', ei saatavilla ' + r.puuttuu + ' (ei karttaa alueelta tai yhteys katkesi)' : '') + '.';
     d.querySelector('#lPeru').textContent = 'Sulje'; d.querySelector('#lOk').disabled = false; d.querySelectorAll('input[name=tark]').forEach(x => x.disabled = false); tila.peru = false; karttaUudelleen(); paivitaKarttaTila();
   };
   d.showModal();
@@ -781,11 +852,16 @@ const A = {
     lv.seuraa = true; karttaUudelleen();
   },
   lataaAlue() { lataaAlueIkkuna(); },
+  async kompassi() {
+    T.as.keulaYlos = !T.as.keulaYlos; await talletaT();
+    if (T.as.keulaYlos) { if (gps.viime || T.sij) lv.seuraa = true; ilmoita(kulku == null ? 'Kartta kääntyy kulkusuuntaan, kun vene liikkuu.' : 'Kartta osoittaa veneen kulkusuuntaan.'); } else ilmoita('Pohjoinen ylhäällä.');
+    karttaUudelleen(); seuraaMerkki();
+  },
   matkaSivu() { nakyma = 'matka'; piirra(); },
   // Kartan asetukset: karttapohjan vaihto ja karttojen lataus talteen.
   kartat() {
     const d = $('#dlg');
-    d.innerHTML = '<form method="dialog"><h3>Kartta</h3><label>Karttapohja<select id="kPohja">' + ['meri', 'maa'].map(k => '<option value="' + k + '"' + (KARTAT[k] === kartta() ? ' selected' : '') + '>' + KARTAT[k].nimi + '</option>').join('') + '</select></label>' +
+    d.innerHTML = '<form method="dialog"><h3>Kartta</h3><label>Karttapohja<select id="kPohja">' + POHJAT.map(k => '<option value="' + k + '"' + (KARTAT[k] === kartta() ? ' selected' : '') + '>' + KARTAT[k].nimi + '</option>').join('') + '</select></label>' +
       [["tuuli","Tuuli ja sää","Tuulinuolet, puuskat, lämpötila ja aallonkorkeus kartalla; ennuste 24 tuntia eteenpäin."],["ais","Muut alukset (AIS)","Lähialueen alukset kartalla. Päivittyy noin minuutin välein."],["satamat","Satamat ja polttoaineasemat","Venesatamat palvelutietoineen. Haetaan kerran ja jää talteen."],["luiskat","Veneenlaskuluiskat","Paikat, joissa veneen voi laskea trailerilta veteen."],["saunat","Yleiset saunat saarissa","Helsingin ja Espoon edustan saarten yleiset ja varattavat saunat."]].map(k => '<label class="cb"><input type="checkbox" data-lisa="' + k[0] + '"' + (T.as[k[0]] ? ' checked' : '') + '>' + k[1] + '</label>').join('') +
       '<label class="cb"><input type="checkbox" id="kKall"' + (T.as.kallistus ? ' checked' : '') + '>Näytä kallistusmittari kartalla</label>' +
       '<label class="cb"><input type="checkbox" id="kSuuntaviiva"' + (T.as.suuntaviiva ? ' checked' : '') + '>Veneen suuntaviiva</label>' +
@@ -1307,7 +1383,7 @@ Object.assign(A, {
 // Tuuli: Open-Meteo (säämalli). AIS: Fintrafficin Digitraffic. Satamat: OpenStreetMap (Overpass).
 const lisa = { tuuli: null, tuuliHaku: 0, tunti: 0, ais: null, aisAika: 0, aisHaku: 0, aisNimet: null, aisNimetAika: 0, aisNakyma: null, satamat: null, satamaHaku: false, satamaVirhe: '', osumat: [], ajastin: 0 };
 const TUNNIT = [0, 3, 6, 12, 24];
-const nakymaRajat = k => { const W = k.cv.clientWidth, H = k.cv.clientHeight, v = k.v, x = mx(v.lon, v.z), y = my(v.lat, v.z); return { lo0: lonX(x - W / 2, v.z), lo1: lonX(x + W / 2, v.z), la1: latY(y - H / 2, v.z), la0: latY(y + H / 2, v.z) }; };
+const nakymaRajat = k => { const [, , W, H] = k.koko(), v = k.v, x = mx(v.lon, v.z), y = my(v.lat, v.z); return { lo0: lonX(x - W / 2, v.z), lo1: lonX(x + W / 2, v.z), la1: latY(y - H / 2, v.z), la0: latY(y + H / 2, v.z) }; };
 // Onko karttaa siirretty tai zoomattu niin paljon, että tiedot pitää hakea uudelleen?
 const siirtynyt = n => { if (!n || !kLive) return true; const v = lv, W = kLive.cv.clientWidth, H = kLive.cv.clientHeight; return Math.abs(v.z - n.z) > 0.8 || Math.hypot(mx(v.lon, v.z) - mx(n.lon, v.z), my(v.lat, v.z) - my(n.lat, v.z)) > 0.35 * Math.min(W, H); };
 const nakymaNyt = () => ({ lat: lv.lat, lon: lv.lon, z: lv.z });
@@ -1389,9 +1465,9 @@ function piirraLisat(c, X, Y, W, H, z) {
     const P = omaR.p; c.lineJoin = c.lineCap = 'round';
     if (P.length > 1) for (const [w, v] of [[8, '#fff'], [4.5, '#1565c0']]) { c.lineWidth = w; c.strokeStyle = v; c.beginPath(); P.forEach((q, i) => i ? c.lineTo(X(q.lon), Y(q.lat)) : c.moveTo(X(q.lon), Y(q.lat))); c.stroke(); }
     P.forEach((q, i) => {
-      const x = X(q.lon), y = Y(q.lat), loppu = i === P.length - 1 && omaR.vaihe === 'vali', paa = i === 0 || loppu, val = omaR.valittu === i;
+      const x = X(q.lon), y = Y(q.lat), loppu = i === P.length - 1 && omaR.vaihe === 'vali', paa = i === 0 || loppu, val = omaR.valittu === i; pysty(c, x, y);
       c.beginPath(); c.arc(x, y, (paa ? 13 : 11) + (val ? 4 : 0), 0, 7); c.fillStyle = val ? '#ffd43b' : i === 0 ? '#1f8a4c' : loppu ? '#c0392b' : '#fff'; c.fill(); c.lineWidth = 3; c.strokeStyle = val ? '#12222f' : paa ? '#fff' : '#1565c0'; c.stroke();
-      c.font = '700 12px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = paa && !val ? '#fff' : '#12222f'; c.fillText(i === 0 ? 'A' : loppu ? 'B' : String(i), x, y + .5);
+      c.font = '700 12px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = paa && !val ? '#fff' : '#12222f'; c.fillText(i === 0 ? 'A' : loppu ? 'B' : String(i), x, y + .5); c.restore();
     });
   }
   const sisalla = (x, y) => x > -30 && y > -30 && x < W + 30 && y < H + 30;
@@ -1399,7 +1475,7 @@ function piirraLisat(c, X, Y, W, H, z) {
   // Satamat ja palvelut omalla kytkimellään, veneenlaskuluiskat omallaan (violetti merkki, näkyvät tasolta 10).
   if ((T.as.satamat || T.as.luiskat) && lisa.satamat && z >= 8.5) for (const s of lisa.satamat.lista) {
     if (s.l === 'luiska' ? !T.as.luiskat || z < 10 : !T.as.satamat || (s.l !== 'satama' && z < 11)) continue;
-    const x = X(s.lo), y = Y(s.la); if (!sisalla(x, y)) continue;
+    const x = X(s.lo), y = Y(s.la); if (!sisalla(x, y)) continue; pysty(c, x, y);
     const r = s.l === 'satama' ? 9 : s.l === 'luiska' ? 8 : 7;
     c.beginPath(); c.arc(x, y, r, 0, 7); c.fillStyle = s.l === 'satama' ? '#0f2a43' : s.l === 'polttoaine' ? '#e8590c' : s.l === 'luiska' ? '#6741d9' : '#6b7780'; c.fill(); c.lineWidth = 2; c.strokeStyle = '#fff'; c.stroke();
     c.strokeStyle = c.fillStyle = '#fff'; c.lineWidth = 1.6; c.beginPath();
@@ -1407,28 +1483,28 @@ function piirraLisat(c, X, Y, W, H, z) {
     else if (s.l === 'polttoaine') { c.moveTo(x, y - 4.5); c.bezierCurveTo(x + 4.5, y, x + 3.5, y + 4.5, x, y + 4.5); c.bezierCurveTo(x - 3.5, y + 4.5, x - 4.5, y, x, y - 4.5); c.fill(); }      // pisara
     else if (s.l === 'luiska') { c.moveTo(x - 5, y + 3.2); c.lineTo(x + 4.5, y + 3.2); c.lineTo(x + 4.5, y - 3.8); c.closePath(); c.fill(); }      // kalteva luiska
     else { c.arc(x, y, 2, 0, 7); c.fill(); }
-    if (z >= 12 && s.n) teksti(s.n, x, y + r + 3, 12, '#0f2a43');
+    if (z >= 12 && s.n) teksti(s.n, x, y + r + 3, 12, '#0f2a43'); c.restore();
     lisa.osumat.push({ x, y, r: r + 12, laji: 'satama', d: s });
   }
   // Omat kalapaikat: kalan kuva ympyrässä. Napautus avaa paikan tiedot.
   if (T.as.kalapaikat && z >= 7.5) for (const k of T.kalapaikat) {
-    const x = X(k.lon), y = Y(k.lat); if (!sisalla(x, y)) continue;
+    const x = X(k.lon), y = Y(k.lat); if (!sisalla(x, y)) continue; pysty(c, x, y);
     c.beginPath(); c.arc(x, y, 14, 0, 7); c.fillStyle = '#0b7a8f'; c.fill(); c.lineWidth = 2.5; c.strokeStyle = '#fff'; c.stroke();
     c.fillStyle = '#fff'; c.beginPath(); c.ellipse(x - 2, y, 7, 4.2, 0, 0, 7); c.fill();
     c.beginPath(); c.moveTo(x + 3.5, y); c.lineTo(x + 9.5, y - 4.6); c.lineTo(x + 9.5, y + 4.6); c.closePath(); c.fill();
     c.beginPath(); c.arc(x - 5.2, y - 1, 1.1, 0, 7); c.fillStyle = '#0b7a8f'; c.fill();
-    if (z >= 12 && k.nimi) teksti(k.nimi, x, y + 16, 12, '#075565');
+    if (z >= 12 && k.nimi) teksti(k.nimi, x, y + 16, 12, '#075565'); c.restore();
     lisa.osumat.push({ x, y, r: 26, laji: 'kala', d: k });
   }
   // Yleiset saunat saarissa (tiedot/saunat.js): ruskea merkki, jossa kiuas ja löyly. Napautus avaa tiedot.
   if (T.as.saunat && z >= 8.5) for (const k of saunaLista()) {
-    const x = X(k.lo), y = Y(k.la); if (!sisalla(x, y)) continue;
+    const x = X(k.lo), y = Y(k.la); if (!sisalla(x, y)) continue; pysty(c, x, y);
     c.beginPath(); c.arc(x, y, 12, 0, 7); c.fillStyle = '#8a4b16'; c.fill(); c.lineWidth = 2.5; c.strokeStyle = '#fff'; c.stroke();
     c.fillStyle = '#fff'; c.fillRect(x - 5.5, y + 2, 11, 5);
     c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.lineCap = 'round'; c.beginPath();
     for (const dx of [-3.5, 0, 3.5]) { c.moveTo(x + dx, y - 0.5); c.quadraticCurveTo(x + dx - 2, y - 2.5, x + dx, y - 4.5); c.quadraticCurveTo(x + dx + 2, y - 6.5, x + dx, y - 8); }
     c.stroke();
-    if (z >= 11.5) teksti(k.n, x, y + 14, 12, '#5f3310');
+    if (z >= 11.5) teksti(k.n, x, y + 14, 12, '#5f3310'); c.restore();
     lisa.osumat.push({ x, y, r: 24, laji: 'sauna', d: k });
   }
   const ra = T.as.rajoitus && vayla && vayla.rajoitukset;
@@ -1438,7 +1514,7 @@ function piirraLisat(c, X, Y, W, H, z) {
       if (a.b[2] < lo0 || a.b[0] > lo1 || a.b[3] < la0 || a.b[1] > la1 || (a.e && a.e < nyt)) continue;
       c.beginPath(); for (const mk of a.m) for (const r of mk) { for (let i = 0; i < r.length; i += 2) i ? c.lineTo(X(r[i]), Y(r[i + 1])) : c.moveTo(X(r[i]), Y(r[i + 1])); c.closePath(); }
       c.fillStyle = a.k ? 'rgba(224,27,36,.10)' : 'rgba(232,89,12,.08)'; c.fill('evenodd'); c.setLineDash([6, 5]); c.lineWidth = 1.6; c.strokeStyle = a.k ? 'rgba(200,20,30,.75)' : 'rgba(232,89,12,.7)'; c.stroke(); c.setLineDash([]);
-      if (a.k && z >= 11.5) { const x = X((a.b[0] + a.b[2]) / 2), y = Y((a.b[1] + a.b[3]) / 2); if (sisalla(x, y) && pisteAlueessa((a.b[0] + a.b[2]) / 2, (a.b[1] + a.b[3]) / 2, a)) { c.beginPath(); c.arc(x, y, 11, 0, 7); c.fillStyle = '#fff'; c.fill(); c.lineWidth = 3; c.strokeStyle = '#d0121c'; c.stroke(); c.font = '700 11px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#12222f'; c.fillText(a.k, x, y + .5); } }
+      if (a.k && z >= 11.5) { const x = X((a.b[0] + a.b[2]) / 2), y = Y((a.b[1] + a.b[3]) / 2); if (sisalla(x, y) && pisteAlueessa((a.b[0] + a.b[2]) / 2, (a.b[1] + a.b[3]) / 2, a)) { pysty(c, x, y); c.beginPath(); c.arc(x, y, 11, 0, 7); c.fillStyle = '#fff'; c.fill(); c.lineWidth = 3; c.strokeStyle = '#d0121c'; c.stroke(); c.font = '700 11px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillStyle = '#12222f'; c.fillText(a.k, x, y + .5); c.restore(); } }
     }
   }
   let aisNakyvissa = 0;
@@ -1449,7 +1525,7 @@ function piirraLisat(c, X, Y, W, H, z) {
     if (liikkuu) { c.moveTo(0, -15); c.lineTo(8.5, 10); c.lineTo(0, 5.5); c.lineTo(-8.5, 10); c.closePath(); } else c.arc(0, 0, 6.5, 0, 7);
     c.lineJoin = 'round'; c.lineWidth = 5; c.strokeStyle = '#fff'; c.stroke(); c.fillStyle = liikkuu ? '#a31fd1' : '#455a64'; c.fill(); c.lineWidth = 1.2; c.strokeStyle = '#2a0a3a'; c.stroke(); c.restore(); aisNakyvissa++;
     const tieto = lisa.aisNimet && lisa.aisNimet.get(a.mmsi);
-    if (z >= 11 && tieto && tieto.name) teksti(tieto.name.trim(), x, y + 13, 11.5, '#4b1d8f');
+    if (z >= 11 && tieto && tieto.name) { pysty(c, x, y); teksti(tieto.name.trim(), x, y + 13, 11.5, '#4b1d8f'); c.restore(); }
     lisa.osumat.push({ x, y, r: 22, laji: 'ais', d: a });
   }
   const tuuli = T.as.tuuli && lisa.tuuli, i = TUNNIT[lisa.tunti];
@@ -1459,7 +1535,7 @@ function piirraLisat(c, X, Y, W, H, z) {
     c.save(); c.translate(x, y); c.rotate(((p.suu[i] || 0) + 180) * RAD);      // nuoli osoittaa suuntaan, johon tuuli puhaltaa
     for (const [w, vv] of [[6.5, 'rgba(255,255,255,.92)'], [3, vari]]) { c.lineWidth = w; c.strokeStyle = vv; c.lineCap = c.lineJoin = 'round'; c.beginPath(); c.moveTo(0, L); c.lineTo(0, -L); c.moveTo(-6, -L + 8); c.lineTo(0, -L); c.lineTo(6, -L + 8); c.stroke(); }
     c.restore();
-    teksti(n(v, 0) + (p.aalto && p.aalto[i] != null ? ' · ' + n(p.aalto[i]) + ' m' : ''), x, y + L + 3, 13, vari);
+    pysty(c, x, y); teksti(n(v, 0) + (p.aalto && p.aalto[i] != null ? ' · ' + n(p.aalto[i]) + ' m' : ''), x, y + L + 3, 13, vari); c.restore();
   }
   const at = $('#kAis');
   if (at) { at.hidden = !T.as.ais; if (T.as.ais) at.textContent = !navigator.onLine ? 'AIS: ei verkkoa' : !lisa.ais ? 'AIS: haetaan…' : 'AIS: ' + (aisNakyvissa ? aisNakyvissa + (aisNakyvissa === 1 ? ' alus' : ' alusta') + ' näkyvissä' : 'ei aluksia tällä alueella') + ' · klo ' + klo(lisa.aisAika); }
@@ -1673,7 +1749,7 @@ function piirraSyvyys(c, X, Y, W, H, z) {
     const varattu = new Set(); c.font = '700 11px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
     for (const [x, y, d] of nimet) {
       if (x < 12 || y < 12 || x > W - 12 || y > H - 12) continue; const a = Math.floor(x / 90) + ',' + Math.floor(y / 90); if (varattu.has(a)) continue; varattu.add(a);
-      c.lineWidth = 3.5; c.strokeStyle = 'rgba(255,255,255,.95)'; c.strokeText(d, x, y); c.fillStyle = syvVari(d); c.fillText(d, x, y);
+      pysty(c, x, y); c.lineWidth = 3.5; c.strokeStyle = 'rgba(255,255,255,.95)'; c.strokeText(d, x, y); c.fillStyle = syvVari(d); c.fillText(d, x, y); c.restore();
     }
   }
   cv.dataset.syvyys = maara;
@@ -1825,7 +1901,7 @@ async function palauta(teksti) {
   await DB.tyhjenna('matkat'); await DB.tyhjenna('jaljet');
   for (const m of o.matkat) await DB.put('matkat', m);
   for (const id in o.jaljet || {}) await DB.put('jaljet', o.jaljet[id], id);
-  const u = uusiTila(); T = Object.assign(u, o.tila); T.as = Object.assign(uusiTila().as, o.tila.as, { seuranta: watchId != null });
+  const u = uusiTila(); T = Object.assign(u, o.tila); T.as = Object.assign(uusiTila().as, o.tila.as, { seuranta: watchId != null }); karttaOletus(o.tila.as);
   matkat = o.matkat; await talletaT(); piirra(); ilmoita('Tiedot palautettu.'); return true;
 }
 
@@ -1833,7 +1909,7 @@ async function palauta(teksti) {
 async function alku() {
   await DB.avaa();
   const u = uusiTila(), s = await DB.get('kv', 'tila') || {};
-  T = Object.assign(u, s); T.as = Object.assign(uusiTila().as, s.as); T.vene = Object.assign(uusiTila().vene, s.vene);
+  T = Object.assign(u, s); T.as = Object.assign(uusiTila().as, s.as); karttaOletus(s.as); T.vene = Object.assign(uusiTila().vene, s.vene);
   matkat = await DB.all('matkat');
   tal = new Tallennin({ auto: T.as.auto, pysMin: T.as.pysMin });
   const k = await DB.get('kv', 'kesken');
