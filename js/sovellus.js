@@ -23,7 +23,7 @@ const KULULAJIT = ['Satama ja laituri', 'Huolto ja varaosat', 'Varusteet', 'Vaku
 function uusiTila() {
   return { vene: { nimi: '', tunnit0: 0, mpk0: 0, syvays: null, nopeus: 10 }, koti: null, reitit: [], paikat: [], kalapaikat: [], tankkaukset: [], kulut: [],
     huollot: HUOLLOT.map((h, i) => ({ id: 'h' + i, nimi: h[0], valiH: h[1], valiKk: h[2], tehtyPvm: null, tehtyH: null })),
-    as: { auto: true, pysMin: 15, seuranta: false, kartta: 's57', karttaV: 2, keulaYlos: false, yksikko: 'kn', kallistus: false, kallNolla: null, rajoitus: true, reittiSeuranta: true, reittiSivu: 200, suuntaviiva: true, syvyys: false, kalapaikat: true, tuuli: false, ais: false, satamat: false, luiskat: false, saunat: true }, saajono: [], kopio: null };
+    as: { auto: true, pysMin: 15, seuranta: false, kartta: 's57', karttaV: 2, keulaYlos: false, kartta3d: false, yksikko: 'kn', kallistus: false, kallNolla: null, rajoitus: true, reittiSeuranta: true, reittiSivu: 200, suuntaviiva: true, syvyys: false, kalapaikat: true, tuuli: false, ais: false, satamat: false, luiskat: false, saunat: true }, saajono: [], kopio: null };
 }
 
 // ---------- tallennus ----------
@@ -410,8 +410,9 @@ const POHJAT = ['s57', 'meri', 'maa'];
 // Oletuspohja vaihtui S-57:ään 2026-11-23: aiemmin tallennettu oletus (vanha merikartta) vaihdetaan kerran, sen jälkeen käyttäjän valinta pysyy.
 function karttaOletus(vanha) { if (vanha && vanha.karttaV >= 2) return; if (T.as.kartta === 'meri') T.as.kartta = 's57'; T.as.karttaV = 2; }
 // Kartan kierto piirron aikana (radiaaneina): pysty() kääntää merkin ja sen tekstin takaisin pystyyn, kun kartta on käännetty kulkusuuntaan.
-let kKierto = 0;
-const pysty = (c, x, y) => { c.save(); if (kKierto) { c.translate(x, y); c.rotate(-kKierto); c.translate(-x, -y); } };
+// kVenytys: kallistetussa 3D-näkymässä merkit venytetään pystysuunnassa, jotta ne eivät näytä litistyneiltä.
+let kKierto = 0, kVenytys = 1;
+const pysty = (c, x, y) => { c.save(); if (kKierto || kVenytys !== 1) { c.translate(x, y); if (kKierto) c.rotate(-kKierto); if (kVenytys !== 1) c.scale(1, kVenytys); c.translate(-x, -y); } };
 const kartta = () => KARTAT[POHJAT.includes(T.as.kartta) ? T.as.kartta : 's57'];
 const latausKartta = () => kartta().talteen ? kartta() : KARTAT.meri;      // talteen ladataan valittu merikartta
 const ylaZ = K => K.nakyZ || K.maxZ + 1.5;
@@ -536,9 +537,11 @@ class Kartta {
     v.z = z; v.lon = (lo0 + lo1) / 2; v.lat = latY((my(la0, 0) + my(la1, 0)) / 2, 0);
   }
   // Kulkusuuntaan käännetty kartta (kierto radiaaneina, 0 = pohjoinen ylhäällä): piirtoalue on näyttöä suurempi neliö, jota käännetään näytön keskipisteen ympäri.
-  koko() { const W = this.cv.clientWidth, H = this.cv.clientHeight, D = this.kierto ? Math.ceil(Math.hypot(W, H)) : 0; return [W, H, D || W, D || H]; }
+  // Kallistetussa 3D-näkymässä (this.kall) piirtoalusta on näyttöä suurempi ja vene on sen alaosassa: ankkuri = kartan keskikohdan paikka piirtoalustalla.
+  ankkuri() { const W = this.cv.clientWidth, H = this.cv.clientHeight; return this.kall ? [W / 2, H - this.kall.ala] : [W / 2, H / 2]; }
+  koko() { const W = this.cv.clientWidth, H = this.cv.clientHeight; if (!this.kierto && !this.kall) return [W, H, W, H]; const a = this.ankkuri(), D = 2 * Math.ceil(Math.hypot(Math.max(a[0], W - a[0]), Math.max(a[1], H - a[1]))); return [W, H, D, D]; }
   // näytön kohta -> piirtoalueen kohta (sama kuin näytön kohta, kun karttaa ei ole käännetty)
-  virt(x, y) { const [W, H, vW, vH] = this.koko(), k = this.kierto || 0, sx = x - W / 2, sy = y - H / 2, co = Math.cos(k), si = Math.sin(k); return [sx * co + sy * si + vW / 2, sy * co - sx * si + vH / 2]; }
+  virt(x, y) { const [, , vW, vH] = this.koko(), a = this.ankkuri(), k = this.kierto || 0, sx = x - a[0], sy = y - a[1], co = Math.cos(k), si = Math.sin(k); return [sx * co + sy * si + vW / 2, sy * co - sx * si + vH / 2]; }
   pyyda() { if (!this.raf) this.raf = requestAnimationFrame(() => { this.raf = 0; this.piirra(); }); }
   siirra(dx, dy) { const v = this.v, k = this.kierto || 0; if (k) { const co = Math.cos(k), si = Math.sin(k); [dx, dy] = [dx * co + dy * si, dy * co - dx * si]; } v.lon = lonX(mx(v.lon, v.z) + dx, v.z); v.lat = rajaa(latY(my(v.lat, v.z) + dy, v.z), -80, 84); v.seuraa = false; this.pyyda(); if (this.onMuutos) this.onMuutos(); }
   // kx, ky = kohta, jonka ympäri zoomataan (sormien keskipiste); seuratessa aina veneen ympäri
@@ -546,14 +549,23 @@ class Kartta {
     const v = this.v, W = this.cv.clientWidth, H = this.cv.clientHeight, z1 = rajaa(v.z + dz, 4, ylaZ(nayttoKartta(v)));
     if (z1 === v.z) return;
     // Zoomataan sormien tai hiiren kohtaan. Venettä seurataan edelleen vain, jos kohta on veneen vieressä.
-    if (kx != null && v.seuraa && Math.hypot(kx - W / 2, ky - H / 2) > 70) { v.seuraa = false; if (this.onMuutos) this.onMuutos(); }
+    if (kx != null && v.seuraa && Math.hypot(kx - this.ankkuri()[0], ky - this.ankkuri()[1]) > 70) { v.seuraa = false; if (this.onMuutos) this.onMuutos(); }
     if (kx == null || v.seuraa) v.z = z1;
     else { const q = this.virt(kx, ky), m = this.koko(), ux = q[0] - m[2] / 2, uy = q[1] - m[3] / 2, lon = lonX(mx(v.lon, v.z) + ux, v.z), lat = latY(my(v.lat, v.z) + uy, v.z); v.z = z1; v.lon = lonX(mx(lon, z1) - ux, z1); v.lat = latY(my(lat, z1) - uy, z1); }
     this.pyyda();
   }
+  // Osoittimen kohta piirtoalustan koordinaateissa. Kallistetussa näkymässä näytön kohta projisoidaan takaisin kartan tasolle:
+  // alusta on käännetty kulman th verran vaakasuoran akselin ympäri veneen kohdalta (bx, by), katselupiste etäisyydellä P.
+  kohta(e) {
+    const cv = this.cv, K = this.kall;
+    if (!K) { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }
+    const r = cv.parentElement.getBoundingClientRect(), sx = e.clientX - r.left - K.bx, sy = e.clientY - r.top - K.by, si = Math.sin(K.th), ni = sy * si + K.P * Math.cos(K.th);
+    const d = Math.max(-0.9 * K.P / si, ni > 1 ? Math.min(3 * K.dmax, -K.P * sy / ni) : 3 * K.dmax), m = K.P / (K.P + d * si);      // d = etäisyys veneestä eteenpäin kartan tasolla, m = mittakaava sillä etäisyydellä
+    return [cv.clientWidth / 2 + sx / m, cv.clientHeight - K.ala - d];
+  }
   _kuuntele() {
     const cv = this.cv, os = new Map(); let veto = false;
-    const kohta = e => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    const kohta = e => this.kohta(e);
     cv.addEventListener('pointerdown', e => { try { cv.setPointerCapture(e.pointerId); } catch (x) { } os.set(e.pointerId, kohta(e)); if (os.size === 1) veto = false; });
     cv.addEventListener('pointermove', e => {
       const ed = os.get(e.pointerId); if (!ed) return; const nyt = kohta(e);
@@ -579,17 +591,21 @@ class Kartta {
   }
   piirra() {
     const cv = this.cv, v = this.v, K = nayttoKartta(v), [Wr, Hr, W, H] = this.koko(); if (!Wr || !cv.isConnected) return;
-    const dpr = window.devicePixelRatio || 1; cv.width = Wr * dpr; cv.height = Hr * dpr;
+    const dpr = Math.min(window.devicePixelRatio || 1, Math.max(1, Math.sqrt(7e6 / (Wr * Hr)))); cv.width = Wr * dpr; cv.height = Hr * dpr;      // suuri 3D-alusta piirretään karkeammin, ettei muisti lopu
     const c = cv.getContext('2d'); c.scale(dpr, dpr);
     // W ja H ovat tästä eteenpäin piirtoalueen koko: käännetyssä kartassa näyttöä suurempi neliö, muuten näytön koko
     const kierto = this.kierto || 0; kKierto = kierto; cv.dataset.kierto = Math.round(kierto / RAD);
-    if (kierto) { c.translate(Wr / 2, Hr / 2); c.rotate(kierto); c.translate(-W / 2, -H / 2); }
+    const rajaus = !!(kierto || this.kall), [ax, ay] = this.ankkuri(), co = Math.cos(kierto), si = Math.sin(kierto); kVenytys = this.kall ? 1 / Math.cos(this.kall.th) : 1;
+    if (rajaus) { c.translate(ax, ay); c.rotate(kierto); c.translate(-W / 2, -H / 2); }
     v.z = rajaa(v.z, 4, ylaZ(K));
     // Tarkempaan tasoon vaihdetaan jo hieman ennen puoliväliä, jotta kuva pysyy terävänä.
     const zi = rajaa(Math.round(v.z + .25), 3, K.maxZ), L = 256 * 2 ** (v.z - zi), ox = mx(v.lon, v.z) - W / 2, oy = my(v.lat, v.z) - H / 2, n = 2 ** zi; let piirretty = 0, tarkkoja = 0;
     for (let tx = Math.floor(ox / L); tx <= Math.floor((ox + W) / L); tx++) for (let ty = Math.floor(oy / L); ty <= Math.floor((oy + H) / L); ty++) {
       if (tx < 0 || ty < 0 || tx >= n || ty >= n) continue;
-      const dx = tx * L - ox, dy = ty * L - oy, im = haeLaatta(K, zi, tx, ty);
+      const dx = tx * L - ox, dy = ty * L - oy;
+      // käännetyssä tai kallistetussa kartassa piirtoalue on neliö: palat, jotka jäävät piirtoalustan ulkopuolelle, jätetään hakematta
+      if (rajaus) { const qx = dx + L / 2 - W / 2, qy = dy + L / 2 - H / 2, px = ax + qx * co - qy * si, py = ay + qx * si + qy * co; if (px < -L || py < -L || px > Wr + L || py > Hr + L) continue; }
+      const im = haeLaatta(K, zi, tx, ty);
       if (im) { c.drawImage(im, dx, dy, L + .6, L + .6); piirretty++; }
       // Pala puuttuu tai on vielä tulossa: näytetään karkeampi taso suurennettuna, jos sellainen on.
       else for (let d = 1; d <= 6 && zi - d >= 3; d++) {
@@ -641,9 +657,20 @@ class Kartta {
     c.restore();
   }
 }
-const seuraaMerkki = () => { const b = $('#lKarttaK'); if (b) b.classList.toggle('on', lv.seuraa); const k = $('#kKompassi'); if (k) { k.classList.toggle('on', !!T.as.keulaYlos); k.firstElementChild.style.transform = 'rotate(' + (kLive && kLive.kierto ? kLive.kierto / RAD : 0) + 'deg)'; } };
+const seuraaMerkki = () => { const b = $('#lKarttaK'); if (b) b.classList.toggle('on', lv.seuraa); const k = $('#kKompassi'); if (k) { k.classList.toggle('on', !!T.as.keulaYlos); k.classList.toggle('kolmed', !!T.as.kartta3d); k.firstElementChild.style.transform = 'rotate(' + (kLive && kLive.kierto ? kLive.kierto / RAD : 0) + 'deg)'; } };
 // Kompassinappi: kartta käännetään niin, että veneen kulkusuunta osoittaa ylös. Kulkusuunta tiedetään vasta, kun vene liikkuu.
 const kiertoNyt = () => T.as.keulaYlos && kulku != null ? -kulku * RAD : 0;
+// 3D-näkymä: pääkartan piirtoalusta suurennetaan ja kallistetaan CSS:n perspektiivillä 45° taaksepäin niin, että vene on ruudun alaosassa ja edessä oleva alue näkyy pitkälle.
+// Mitat lasketaan ruudun koosta: P = katseluetäisyys, by = veneen korkeus ruudulla, ala = alustaa veneen takana, dmax = alustaa veneen edessä.
+function kallistusAseta() {
+  const cv = kLive.cv, p = cv.parentElement;
+  if (!T.as.kartta3d) { if (kLive.kall) { kLive.kall = null; cv.style.cssText = ''; p.style.perspective = p.style.perspectiveOrigin = ''; p.classList.remove('k3d'); } return; }
+  const W = p.clientWidth, H = p.clientHeight; if (!W || (kLive.kall && kLive.kall.W === W && kLive.kall.H === H)) return;
+  const P = Math.round(1.15 * H), by = Math.round(0.74 * H), ala = Math.round(0.3 * H), dmax = Math.round(2.8 * H), cw = Math.round(2.72 * W), ch = dmax + ala;
+  p.style.perspective = P + 'px'; p.style.perspectiveOrigin = '50% ' + by + 'px'; p.classList.add('k3d');
+  Object.assign(cv.style, { position: 'absolute', left: (W - cw) / 2 + 'px', top: by - dmax + 'px', width: cw + 'px', height: ch + 'px', transformOrigin: '50% ' + dmax + 'px', transform: 'rotateX(45deg)' });
+  kLive.kall = { W, H, P, th: 45 * RAD, bx: W / 2, by, ala, dmax };
+}
 function karttaUudelleen() {
   if (nakyma === 'yksi' && kYksi && kYksi.cv.isConnected) kYksi.piirra();
   if (nakyma === 'kartta') { lk = null; liveKartta(); }
@@ -653,7 +680,7 @@ function karttaUudelleen() {
 function liveKartta() {
   const cv = $('#lKartta'); if (!cv) return;
   if (!kLive || kLive.cv !== cv) { kLive = new Kartta(cv, lv); kLive.onMuutos = seuraaMerkki; lk = null; }
-  kLive.reitti = reitti && !omaR ? reitti.r.pisteet : null; kLive.lisat = piirraLisat; kLive.suuntaviiva = T.as.suuntaviiva; kLive.reittiKohta = !omaR && seurPaalla() && seur.aktiivinen ? seur.k : null; kLive.kierto = kiertoNyt();      // omaa reittiä muokatessa näytetään vain muokattava reitti
+  kLive.reitti = reitti && !omaR ? reitti.r.pisteet : null; kLive.lisat = piirraLisat; kLive.suuntaviiva = T.as.suuntaviiva; kLive.reittiKohta = !omaR && seurPaalla() && seur.aktiivinen ? seur.k : null; kallistusAseta(); kLive.kierto = kiertoNyt();      // omaa reittiä muokatessa näytetään vain muokattava reitti
   const f = gps.viime, paalla = watchId != null || tal.tila === 'matka';
   if (!f || !paalla) {            // ei sijaintia juuri nyt: viimeisin tunnettu paikka, muuten Suomenlahti
     if (lk) return; lk = { tyhja: true };
@@ -853,8 +880,10 @@ const A = {
   },
   lataaAlue() { lataaAlueIkkuna(); },
   async kompassi() {
-    T.as.keulaYlos = !T.as.keulaYlos; await talletaT();
-    if (T.as.keulaYlos) { if (gps.viime || T.sij) lv.seuraa = true; ilmoita(kulku == null ? 'Kartta kääntyy kulkusuuntaan, kun vene liikkuu.' : 'Kartta osoittaa veneen kulkusuuntaan.'); } else ilmoita('Pohjoinen ylhäällä.');
+    // kolme tilaa vuorotellen: pohjoinen ylhäällä -> kulkusuunta ylhäällä -> kulkusuunta ylhäällä ja kartta kallistettuna (3D)
+    if (!T.as.keulaYlos) { T.as.keulaYlos = true; T.as.kartta3d = false; } else if (!T.as.kartta3d) T.as.kartta3d = true; else { T.as.keulaYlos = false; T.as.kartta3d = false; }
+    await talletaT();
+    if (T.as.keulaYlos) { if (gps.viime || T.sij) lv.seuraa = true; ilmoita(T.as.kartta3d ? '3D-näkymä: kartta on kallistettu kulkusuuntaan.' : kulku == null ? 'Kartta kääntyy kulkusuuntaan, kun vene liikkuu.' : 'Kartta osoittaa veneen kulkusuuntaan.'); } else ilmoita('Pohjoinen ylhäällä.');
     karttaUudelleen(); seuraaMerkki();
   },
   matkaSivu() { nakyma = 'matka'; piirra(); },
@@ -871,8 +900,8 @@ const A = {
       '<label class="cb"><input type="checkbox" id="kSeur"' + (T.as.reittiSeuranta ? ' checked' : '') + '>Seuraa reittiä ajon aikana</label>' +
       '<label>Varoita, kun vene on sivussa reitistä<select id="kSivu">' + [[100, 'yli 100 m'], [200, 'yli 200 m'], [500, 'yli 500 m'], [0, 'ei varoitusta']].map(x => '<option value="' + x[0] + '"' + (x[0] === T.as.reittiSivu ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select></label>' +
       '<div class="pieni">Seuranta näyttää kartalla olevasta reitistä jäljellä olevan matkan, arvioidun tuloajan ja seuraavan käännöksen. Se tarvitsee sijainnin, eli seurannan pitää olla päällä Matka-välilehdellä.</div>' +
-      '<div class="pieni">Merikartan saa talteen puhelimeen, jolloin se näkyy ilman verkkoa. "Näkyvä alue" tarkoittaa kartalla juuri nyt näkyvää aluetta.</div>' +
-      '<button type="button" class="nappi" id="kAlue">Lataa näkyvä alue talteen</button>' + alueNapit('dlg') +
+      '<div class="pieni">Kartalla juuri nyt näkyvän alueen saa talteen puhelimeen, jolloin se näkyy ilman verkkoa. Kokonaiset alueet (Suomenlahti, Saimaa ja muut) ladataan Lisää-välilehdeltä.</div>' +
+      '<button type="button" class="nappi" id="kAlue">Lataa näkyvä alue talteen</button>' +
       '<div class="napit"><button type="button" class="nappi paa" id="kSulje">Sulje</button></div></form>';
     d.querySelector('#kPohja').onchange = async ev => { T.as.kartta = ev.target.value; await talletaT(); piirra(); };
     d.querySelectorAll('[data-lisa]').forEach(el => el.onchange = async () => { T.as[el.dataset.lisa] = el.checked; await talletaT(); if (kLive) kLive.piirra(); lisatPaivita(); });
@@ -890,7 +919,6 @@ const A = {
     };
     d.querySelector('#kSivu').onchange = async ev => { T.as.reittiSivu = +ev.target.value; seur.sivussa = false; seur.halytyksia = 0; await talletaT(); if (paikkaTuore()) reittiSeuraa(gps.viime); paivitaReittiPalkki(); };
     d.querySelector('#kAlue').onclick = () => { d.close(); lataaAlueIkkuna(); };
-    d.querySelectorAll('[data-alue]').forEach(el => el.onclick = () => { d.close(); A.lataaKokoAlue(el.dataset.alue); });
     d.querySelector('#kSulje').onclick = () => d.close();
     d.showModal();
   },
@@ -1383,16 +1411,17 @@ Object.assign(A, {
 // Tuuli: Open-Meteo (säämalli). AIS: Fintrafficin Digitraffic. Satamat: OpenStreetMap (Overpass).
 const lisa = { tuuli: null, tuuliHaku: 0, tunti: 0, ais: null, aisAika: 0, aisHaku: 0, aisNimet: null, aisNimetAika: 0, aisNakyma: null, satamat: null, satamaHaku: false, satamaVirhe: '', osumat: [], ajastin: 0 };
 const TUNNIT = [0, 3, 6, 12, 24];
-const nakymaRajat = k => { const [, , W, H] = k.koko(), v = k.v, x = mx(v.lon, v.z), y = my(v.lat, v.z); return { lo0: lonX(x - W / 2, v.z), lo1: lonX(x + W / 2, v.z), la1: latY(y - H / 2, v.z), la0: latY(y + H / 2, v.z) }; };
+// Piirtoalustan kulmat kartalla: toimii myös käännetyssä ja kallistetussa kartassa.
+const nakymaRajat = k => { const [W, H, vW, vH] = k.koko(), v = k.v, x = mx(v.lon, v.z), y = my(v.lat, v.z); let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity; for (const [a, b] of [[0, 0], [W, 0], [0, H], [W, H]]) { const q = k.virt(a, b); x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); } return { lo0: lonX(x + x0 - vW / 2, v.z), lo1: lonX(x + x1 - vW / 2, v.z), la1: latY(y + y0 - vH / 2, v.z), la0: latY(y + y1 - vH / 2, v.z) }; };
 // Onko karttaa siirretty tai zoomattu niin paljon, että tiedot pitää hakea uudelleen?
 const siirtynyt = n => { if (!n || !kLive) return true; const v = lv, W = kLive.cv.clientWidth, H = kLive.cv.clientHeight; return Math.abs(v.z - n.z) > 0.8 || Math.hypot(mx(v.lon, v.z) - mx(n.lon, v.z), my(v.lat, v.z) - my(n.lat, v.z)) > 0.35 * Math.min(W, H); };
 const nakymaNyt = () => ({ lat: lv.lat, lon: lv.lon, z: lv.z });
 
 async function tuuliHae() {
   if (lisa.tuuliHaku || !kLive) return; lisa.tuuliHaku = 1;
-  const b = nakymaRajat(kLive), nak = nakymaNyt(), RIV = 4, la = [], lo = [];
-  // 10 pistettä limittäin: riveillä vuorotellen 3 ja 2 nuolta (aiemmin 4 × 5 = 20, käyttäjän toive 2026-11-23: puolet vähemmän)
-  for (let r = 0; r < RIV; r++) for (let s = 0, SAR = r % 2 ? 2 : 3; s < SAR; s++) { la.push((b.la1 - (r + .5) / RIV * (b.la1 - b.la0)).toFixed(3)); lo.push((b.lo0 + (s + .5) / SAR * (b.lo1 - b.lo0)).toFixed(3)); }
+  const b = nakymaRajat(kLive), nak = nakymaNyt(), RIV = 3, la = [], lo = [];
+  // 5 pistettä limittäin: riveillä 2, 1 ja 2 nuolta (aiemmin 20, sitten 10; käyttäjän toive 2026-11-23: vieläkin puolet vähemmän)
+  for (let r = 0; r < RIV; r++) for (let s = 0, SAR = r % 2 ? 1 : 2; s < SAR; s++) { la.push((b.la1 - (r + .5) / RIV * (b.la1 - b.la0)).toFixed(3)); lo.push((b.lo0 + (s + .5) / SAR * (b.lo1 - b.lo0)).toFixed(3)); }
   try {
     const q = 'latitude=' + la.join(',') + '&longitude=' + lo.join(',') + '&forecast_hours=25&timezone=UTC';
     const [r1, r2] = await Promise.all([fetch('https://api.open-meteo.com/v1/forecast?' + q + '&wind_speed_unit=ms&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m,temperature_2m,precipitation'), fetch('https://marine-api.open-meteo.com/v1/marine?' + q + '&hourly=wave_height').catch(() => null)]);

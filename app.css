@@ -64,6 +64,10 @@ main{max-width:640px;margin:0 auto;padding:14px 14px calc(var(--ala) + 18px)}
 main.taysi{padding:0;max-width:none}
 .kokok{position:fixed;left:0;right:0;top:var(--ylak,47px);bottom:var(--ala);overflow:hidden;background:#cfe0ea}
 .kartta.taysi{width:100%;height:100%;border-radius:0}
+/* 3D-näkymä: kallistetun kartan yläpuolelle jää kapea taivas, ja kompassinapissa on 3D-merkki */
+.kokok.k3d{background:linear-gradient(#a9cbe2,#e4eef5 20%)}
+.knapit button.kolmed{position:relative}
+.knapit button.kolmed::after{content:"3D";position:absolute;right:-5px;bottom:-5px;font:700 10px/1 system-ui,sans-serif;background:#12222f;color:#fff;border-radius:7px;padding:2px 4px}
 .kmittari{position:absolute;left:10px;top:10px;display:flex;flex-direction:column;gap:2px;min-width:104px;padding:8px 12px 9px;border-radius:14px;background:rgba(255,255,255,.93);color:#12222f;box-shadow:0 1px 6px rgba(0,0,0,.3);pointer-events:none;font-variant-numeric:tabular-nums}
 .kmittari b{font-weight:700;line-height:1}
 .kmittari span{font-size:13px;color:#5d6f7d;margin-left:5px}
