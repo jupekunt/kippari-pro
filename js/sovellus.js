@@ -1390,8 +1390,9 @@ const nakymaNyt = () => ({ lat: lv.lat, lon: lv.lon, z: lv.z });
 
 async function tuuliHae() {
   if (lisa.tuuliHaku || !kLive) return; lisa.tuuliHaku = 1;
-  const b = nakymaRajat(kLive), nak = nakymaNyt(), SAR = 4, RIV = 5, la = [], lo = [];
-  for (let r = 0; r < RIV; r++) for (let s = 0; s < SAR; s++) { la.push((b.la1 - (r + .5) / RIV * (b.la1 - b.la0)).toFixed(3)); lo.push((b.lo0 + (s + .5) / SAR * (b.lo1 - b.lo0)).toFixed(3)); }
+  const b = nakymaRajat(kLive), nak = nakymaNyt(), RIV = 4, la = [], lo = [];
+  // 10 pistettä limittäin: riveillä vuorotellen 3 ja 2 nuolta (aiemmin 4 × 5 = 20, käyttäjän toive 2026-11-23: puolet vähemmän)
+  for (let r = 0; r < RIV; r++) for (let s = 0, SAR = r % 2 ? 2 : 3; s < SAR; s++) { la.push((b.la1 - (r + .5) / RIV * (b.la1 - b.la0)).toFixed(3)); lo.push((b.lo0 + (s + .5) / SAR * (b.lo1 - b.lo0)).toFixed(3)); }
   try {
     const q = 'latitude=' + la.join(',') + '&longitude=' + lo.join(',') + '&forecast_hours=25&timezone=UTC';
     const [r1, r2] = await Promise.all([fetch('https://api.open-meteo.com/v1/forecast?' + q + '&wind_speed_unit=ms&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m,temperature_2m,precipitation'), fetch('https://marine-api.open-meteo.com/v1/marine?' + q + '&hourly=wave_height').catch(() => null)]);
