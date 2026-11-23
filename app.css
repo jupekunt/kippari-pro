@@ -160,3 +160,23 @@ dialog input[type=checkbox]{width:22px;height:22px;flex:none;accent-color:var(--
 
 /* kaikki valintaruudut pitävät kokonsa, vaikka viereinen teksti rivittyisi */
 input[type=checkbox],input[type=radio]{flex:none;min-width:22px;min-height:22px}
+
+/* Opas-välilehti: merimerkit ja vesiliikennemerkit */
+.opas{scroll-margin-top:60px}
+.omerkki{display:flex;gap:12px;align-items:flex-start;padding:11px 0;border-top:1px solid var(--viiva)}
+.omerkki svg{flex:0 0 54px;width:54px;height:auto;background:#dcebf3;border-radius:8px;padding:3px;box-sizing:border-box}
+.omerkki>div>b,.olaatikko>b{display:block;margin-bottom:2px}
+.omerkki span{display:block;font-size:14.5px;line-height:1.4}
+.omerkki span.pieni{margin-top:4px;font-size:12.5px}
+.olaatikko{margin-top:10px;padding:10px 12px;border-radius:10px;background:rgba(11,122,143,.1);font-size:14px;line-height:1.4}
+.olaatikko span{display:block}
+.ohyppy{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.ohyppy a{font-size:13px;padding:6px 10px;border-radius:14px;border:1px solid var(--viiva);color:var(--korostus);text-decoration:none}
+.otaulu{width:100%;border-collapse:collapse;margin-top:8px;font-size:13.5px}
+.otaulu th,.otaulu td{text-align:left;padding:6px 8px 6px 0;border-top:1px solid var(--viiva);vertical-align:top}
+.otaulu th{font-size:12px;color:var(--himmea);font-weight:600}
+.otaulu td:first-child{white-space:nowrap;font-weight:600}
+#valikko button{min-width:0}
+.omerkki svg.osolmu{flex-basis:104px;width:104px}
+.osolmurivi ol{margin:6px 0 2px;padding-left:20px;font-size:14.5px;line-height:1.4}
+.osolmurivi li{margin:3px 0}
