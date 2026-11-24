@@ -180,3 +180,17 @@ input[type=checkbox],input[type=radio]{flex:none;min-width:22px;min-height:22px}
 .omerkki svg.osolmu{flex-basis:104px;width:104px}
 .osolmurivi ol{margin:6px 0 2px;padding-left:20px;font-size:14.5px;line-height:1.4}
 .osolmurivi li{margin:3px 0}
+/* sadetutkan nappi kartan vasemmassa alareunassa (AIS-rivin yläpuolella, jos sekin on näkyvissä) */
+.ktutka{position:absolute;left:10px;bottom:68px;display:flex;align-items:baseline;gap:7px;border:0;border-radius:16px;padding:7px 13px;background:rgba(255,255,255,.93);color:#12222f;font-size:13.5px;box-shadow:0 1px 6px rgba(0,0,0,.3);cursor:pointer;font-variant-numeric:tabular-nums}
+.ktutka[hidden]{display:none}
+.ktutka b{font-weight:700;color:#0b5c8f}
+.ktutka span{color:#42525f}
+.ktutka.on{background:#0b5c8f}.ktutka.on b,.ktutka.on span{color:#fff}
+.kais:not([hidden])+.ktutka{bottom:106px}
+.onreitti .ktutka{bottom:134px}
+.onreitti .kais:not([hidden])+.ktutka{bottom:172px}
+/* 3D-näkymän vene: kolmiulotteisen näköinen kuva kallistetun kartan päällä, paikka ja koko asetetaan koodista */
+.kvene3d{position:absolute;left:0;top:0;width:45px;height:56px;pointer-events:none;transform-origin:50% 62%;filter:drop-shadow(0 2px 2px rgba(0,0,0,.28))}
+.kvene3d[hidden]{display:none}
+.kvene3d svg{display:block;width:100%;height:100%}
+.kvene3d.himmea{filter:grayscale(1) opacity(.72)}

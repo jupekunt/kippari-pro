@@ -383,4 +383,37 @@ function pisteAlueessa(lon, lat, a) { if (lon < a.b[0] || lon > a.b[2] || lat < 
 // Voimassa olevat rajoitukset annetussa kohdassa, tiukin nopeusrajoitus ensin.
 function rajoitusKohdassa(lista, lat, lon, nyt) { return (lista || []).filter(a => (!a.e || a.e > nyt) && pisteAlueessa(lon, lat, a)).sort((a, b) => (a.k || 1e9) - (b.k || 1e9)); }
 
-if (typeof module !== 'undefined') module.exports = { yhdistaVaylat, suuntima, kulmaEro, reittiMitat, reittiKohta, yksinkertaista, rajoituksetMuunna, pisteAlueessa, rajoitusKohdassa, satamatMuunna, ylosVektori, kallistus, MERKKILAJIT, rakennaVerkko, lahinVayla, reitita, merkitReitilla, MPK, SOLMU, etaisyys, Tallennin, lahinPaikka, kulutus, huoltoTila, ilmansuunta, saaYhteenveto, gpx };
+// ---------- sadetutka (Ilmatieteen laitoksen WMS) ----------
+// Uusimman tutkakuvan aika (ms) palvelun kuvauksesta: <Dimension name="time">alku/loppu/PT5M</Dimension>. Palauttaa null, jos aikaa ei löydy.
+function tutkaLoppu(xml) { const m = /<Dimension[^>]*name="time"[^>]*>s*([^<s]+)/.exec(xml || ''); if (!m) return null; const o = m[1].split(','), v = o[o.length - 1].split('/'), t = Date.parse(v.length > 1 ? v[1] : v[0]); return isNaN(t) ? null : t; }
+// Kuvasta piirretään vain piirtoalueella (W x H) näkyvä osa. Kuva kattaa piirtoalueen kohdat x0..x1, y0..y1 ja on kooltaan kw x kh.
+// Palauttaa drawImagen luvut [sx, sy, sw, sh, dx, dy, dw, dh] tai null, jos kuva ei osu näkyviin.
+function tutkaRajaus(x0, y0, x1, y1, kw, kh, W, H) {
+  const a0 = Math.max(x0, 0), a1 = Math.min(x1, W), b0 = Math.max(y0, 0), b1 = Math.min(y1, H); if (!(a1 > a0 && b1 > b0)) return null;
+  const kx = kw / (x1 - x0), ky = kh / (y1 - y0); return [(a0 - x0) * kx, (b0 - y0) * ky, (a1 - a0) * kx, (b1 - b0) * ky, a0, b0, a1 - a0, b1 - b0];
+}
+
+// ---------- Norjan väylät (Kystverket: Hovedled og biled, WFS/GML) ----------
+// Muuntaa GML-vastauksen samaan muotoon kuin Suomen väylät: {nimet, linjat: [{p: [lon, lat, ...], s: null, j}]}.
+// GML:ssä pisteet ovat järjestyksessä lat lon. Kulkusyvyyttä aineistossa ei ole (s = null). Väylän nimen perään tulee tyyppi (pääväylä / sivuväylä).
+function farledMuunna(xml) {
+  const nimet = [], ni = new Map(), linjat = [];
+  const kohteet = String(xml || '').split(/<gml:featureMember>/).slice(1);
+  for (const k of kohteet) {
+    const kentta = n => { const m = new RegExp('<ms:' + n + '>([^<]*)').exec(k); return m ? m[1].replace(/&amp;/g, '&').trim() : ''; };
+    const tyyppi = kentta('farledtype'), nimi = (kentta('navn') || 'Nimetön väylä') + (tyyppi === 'Hovedled' ? ' (pääväylä)' : tyyppi === 'Biled' ? ' (sivuväylä)' : '');
+    const re = /<(?:gml:)?posList[^>]*>([^<]+)</g; let m, j = -1;
+    while ((m = re.exec(k))) {
+      const v = m[1].trim().split(/\s+/).map(Number), pp = [];
+      for (let i = 0; i + 1 < v.length; i += 2) if (isFinite(v[i]) && isFinite(v[i + 1])) pp.push(+v[i + 1].toFixed(6), +v[i].toFixed(6));
+      if (pp.length < 4) continue;
+      if (j < 0) { j = ni.get(nimi); if (j === undefined) { j = nimet.length; nimet.push(nimi); ni.set(nimi, j); } }
+      linjat.push({ p: pp, s: null, j });
+    }
+  }
+  return { nimet, linjat };
+}
+// Onko kohta jonkin alueen rajojen sisällä (alueet = [{b: {lo0, lo1, la0, la1}}])? Käytetään Norjan merikartan automaattiseen valintaan.
+function norjassa(lat, lon, alueet) { for (const a of alueet || []) if (lon >= a.b.lo0 && lon < a.b.lo1 && lat >= a.b.la0 && lat < a.b.la1) return true; return false; }
+
+if (typeof module !== 'undefined') module.exports = { farledMuunna, norjassa,tutkaLoppu, tutkaRajaus,yhdistaVaylat, suuntima, kulmaEro, reittiMitat, reittiKohta, yksinkertaista, rajoituksetMuunna, pisteAlueessa, rajoitusKohdassa, satamatMuunna, ylosVektori, kallistus, MERKKILAJIT, rakennaVerkko, lahinVayla, reitita, merkitReitilla, MPK, SOLMU, etaisyys, Tallennin, lahinPaikka, kulutus, huoltoTila, ilmansuunta, saaYhteenveto, gpx };

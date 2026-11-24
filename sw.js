@@ -1,7 +1,7 @@
 // Tallentaa sovelluksen tiedostot puhelimeen, jotta se avautuu ilman verkkoa. Sää-, kartta- ja väylähakuihin ei kosketa.
 // Verkko ensin: kun yhteys on, käytetään aina uusinta versiota. Talteen tallennettu versio on varalla ilman verkkoa.
-const NIMI = 'lokikirja-v4';
-const TIEDOSTOT = ['./', 'index.html', 'app.css', 'js/ydin.js', 'js/sovellus.js', 'tiedot/satamat.js', 'tiedot/saunat.js', 'tiedot/opas.js', 'manifest.webmanifest', 'kuvake.svg', 'kuvake-192.png', 'kuvake-512.png', 'kuvake-180.png'];
+const NIMI = 'lokikirja-v5';
+const TIEDOSTOT = ['./', 'index.html', 'app.css', 'js/ydin.js', 'js/sovellus.js', 'tiedot/satamat.js', 'tiedot/satamat-norja.js', 'tiedot/saunat.js', 'tiedot/opas.js', 'manifest.webmanifest', 'kuvake.svg', 'kuvake-192.png', 'kuvake-512.png', 'kuvake-180.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(NIMI).then(c => c.addAll(TIEDOSTOT)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(k => Promise.all(k.filter(x => x !== NIMI).map(x => caches.delete(x)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {

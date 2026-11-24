@@ -23,7 +23,7 @@ const KULULAJIT = ['Satama ja laituri', 'Huolto ja varaosat', 'Varusteet', 'Vaku
 function uusiTila() {
   return { vene: { nimi: '', tunnit0: 0, mpk0: 0, syvays: null, nopeus: 10 }, koti: null, reitit: [], paikat: [], kalapaikat: [], tankkaukset: [], kulut: [],
     huollot: HUOLLOT.map((h, i) => ({ id: 'h' + i, nimi: h[0], valiH: h[1], valiKk: h[2], tehtyPvm: null, tehtyH: null })),
-    as: { auto: true, pysMin: 15, seuranta: false, kartta: 's57', karttaV: 2, keulaYlos: false, kartta3d: false, s57Nimet: true, yksikko: 'kn', kallistus: false, kallNolla: null, rajoitus: true, reittiSeuranta: true, reittiSivu: 200, suuntaviiva: true, syvyys: false, kalapaikat: true, tuuli: false, ais: false, satamat: false, luiskat: false, saunat: true }, saajono: [], kopio: null };
+    as: { auto: true, pysMin: 15, seuranta: false, kartta: 's57', karttaV: 2, keulaYlos: false, kartta3d: false, s57Nimet: true, yksikko: 'kn', kallistus: false, kallNolla: null, rajoitus: true, reittiSeuranta: true, reittiSivu: 200, suuntaviiva: true, syvyys: false, kalapaikat: true, tuuli: false, tutka: false, ais: false, satamat: false, luiskat: false, saunat: true }, saajono: [], kopio: null };
 }
 
 // ---------- tallennus ----------
@@ -231,7 +231,7 @@ function nMatka() {
 }
 // Päänäkymä: koko ruudun kartta. Päällä nopeus ja kulkusuunta, kartan napit ja tallennuksen tila.
 function nKartta() {
-  return '<div class="kokok' + (reitti || omaR ? ' onreitti' : '') + '"><canvas class="kartta taysi" id="lKartta"></canvas>' +
+  return '<div class="kokok' + (reitti || omaR ? ' onreitti' : '') + '"><canvas class="kartta taysi" id="lKartta"></canvas><div class="kvene3d" id="kVene3d" hidden>' + VENE3D + '</div>' +
     '<div class="kyla"><div class="kmittari"><div class="knop"><b id="kNopeus">–</b><span>' + NY() + '</span></div><div class="ksuu"><b id="kSuunta">–</b><span id="kIlmans"></span></div><div class="kraj" id="kRaja" data-a="rajoitusTiedot" hidden><i id="kRajaLuku"></i><span id="kRajaS"></span></div><div class="kkal" id="kKalRivi" hidden><em class="kvene"><i id="kKalViiva"><svg viewBox="0 0 40 34" aria-hidden="true"><path d="M20 2v7" stroke="#12222f" stroke-width="1.6" stroke-linecap="round"/><path d="M12.5 17l2-8h11l2 8z" fill="#cfe6ec" stroke="#0b7a8f" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 17h32l-3.5 8.5q-12.5 5-25 0z" fill="#0b7a8f" stroke="#075565" stroke-width="1.2" stroke-linejoin="round"/><rect x="18" y="24" width="4" height="7" rx="1.2" fill="#12222f"/></svg></i></em><b id="kKal">–</b><span id="kKalS"></span></div></div><button class="ktuuli" id="kTuuli" data-a="tuuliAika" hidden title="Vaihda ennusteen ajankohtaa"><b></b><span></span></button></div>' +
     '<div class="knapit"><button data-a="keskita" id="lKarttaK" aria-label="Keskitä veneeseen" title="Keskitä veneeseen">' + KESKITA + '</button>' +
     '<button data-a="kompassi" id="kKompassi" aria-label="Käännä kartta kulkusuuntaan" title="Käännä kartta kulkusuuntaan"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.6"/><path d="M12 3.6l3.1 8.4H8.9z" fill="#e01b24" stroke="none"/><path d="M12 20.4L8.9 12h6.2z" fill="#9aa7b1" stroke="none"/></svg></button>' +
@@ -239,7 +239,7 @@ function nKartta() {
     '<button data-a="reitti" aria-label="Reittisuunnittelu" title="Reittisuunnittelu"><svg viewBox="0 0 24 24"><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="6" r="2.5"/><path d="M8.5 18H14a3 3 0 0 0 0-6h-4a3 3 0 0 1 0-6h5.5"/></svg></button>' +
     '<button data-a="kalapaikka" aria-label="Lisää kalapaikka" title="Lisää kalapaikka"><svg viewBox="0 0 24 24"><path d="M2.5 12c2.6-4.6 8.6-6 13-2.6L20.5 6v12l-5-3.4c-4.4 3.4-10.4 2-13-2.6z"/><circle cx="7.5" cy="11" r=".9" fill="currentColor"/></svg></button>' +
     '<button data-a="kartat" aria-label="Karttapohja ja lataus" title="Karttapohja ja lataus"><svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5zM3 12l9 5 9-5M3 16l9 5 9-5"/></svg></button></div>' +
-    '<button class="kais" id="kAis" data-a="aisNyt" hidden title="Päivitä AIS-tiedot nyt"></button><button class="ktila" id="kTila" data-a="matkaSivu"></button>' + (omaR ? omaPalkki() : reittiPalkki()) + '<div class="ktekija">' + kartta().tekija + '</div></div>';
+    '<button class="kais" id="kAis" data-a="aisNyt" hidden title="Päivitä AIS-tiedot nyt"></button><button class="ktutka" id="kTutka" data-a="tutkaAnim" hidden title="Näytä viimeisen tunnin sadekuvat liikkuvana"><b></b><span></span></button><button class="ktila" id="kTila" data-a="matkaSivu"></button>' + (omaR ? omaPalkki() : reittiPalkki()) + '<div class="ktekija"><span id="kTekija">' + nayttoKartta(lv).tekija + '</span><span id="kTutkaL" hidden></span></div></div>';
 }
 function paivitaLive() {
   const f = gps.viime, m = tal.m, matkalla = tal.tila === 'matka', paalla = watchId != null;
@@ -337,9 +337,9 @@ function nLisaa() {
     '<div class="pieni" id="rajTila"></div><div class="pieni">Kun ajat rajoitusalueella, kartan mittariin tulee rajoitusmerkki. Ylinopeudesta puhelin värisee ja piippaa, ja nopeuslukema muuttuu punaiseksi. Rajoitukset ovat kilometreinä tunnissa. Vesillä olevat merkit ratkaisevat: aineistossa voi olla puutteita, ja osa rajoituksista ei koske yleistä kulkuväylää.</div>' +
     '<div class="napit"><button class="nappi pien" data-a="rajoitusLataa">Lataa tai päivitä rajoitusalueet</button></div></div>' +
     '<div class="kortti"><h2>Kartan lisätiedot</h2><div class="pieni">Nämä haetaan verkosta, joten ne näkyvät vain, kun yhteys on käytössä.</div>' +
-    [["tuuli","Tuuli ja sää","Tuulinuolet, puuskat, lämpötila ja aallonkorkeus kartalla; ennuste 24 tuntia eteenpäin."],["ais","Muut alukset (AIS)","Lähialueen alukset kartalla. Päivittyy noin minuutin välein."],["satamat","Satamat ja polttoaineasemat","Suomenlahden, Saaristomeren ja Selkämeren venesatamat palvelutietoineen. Tiedot tulevat sovelluksen mukana, joten ne näkyvät myös ilman verkkoa."],["luiskat","Veneenlaskuluiskat","Paikat, joissa veneen voi laskea trailerilta veteen. Tiedot tulevat sovelluksen mukana ja näkyvät, kun kartta on lähennetty."],["saunat","Yleiset saunat saarissa","Helsingin ja Espoon edustan saarten saunat, joihin kuka tahansa pääsee vuorolle tai varaamalla. Tiedot tulevat sovelluksen mukana."]].map(k => '<label class="kytkin"><span>' + k[1] + '<br><span class="pieni">' + k[2] + '</span></span><input type="checkbox" data-c="' + k[0] + '"' + (T.as[k[0]] ? ' checked' : '') + '></label>').join('') +
+    [["tuuli","Tuuli ja sää","Tuulinuolet, puuskat, lämpötila ja aallonkorkeus kartalla; ennuste 24 tuntia eteenpäin."],["tutka","Sadetutka","Ilmatieteen laitoksen tutkakuva kartan päällä: missä sataa juuri nyt. Päivittyy viiden minuutin välein, ja kartan Sadetutka-napista näkee viimeisen tunnin liikkeen. Vaatii verkkoyhteyden."],["ais","Muut alukset (AIS)","Lähialueen alukset kartalla. Päivittyy noin minuutin välein."],["satamat","Satamat ja polttoaineasemat","Suomenlahden, Saaristomeren ja Selkämeren venesatamat palvelutietoineen. Tiedot tulevat sovelluksen mukana, joten ne näkyvät myös ilman verkkoa."],["luiskat","Veneenlaskuluiskat","Paikat, joissa veneen voi laskea trailerilta veteen. Tiedot tulevat sovelluksen mukana ja näkyvät, kun kartta on lähennetty."],["saunat","Yleiset saunat saarissa","Helsingin ja Espoon edustan saarten saunat, joihin kuka tahansa pääsee vuorolle tai varaamalla. Tiedot tulevat sovelluksen mukana."]].map(k => '<label class="kytkin"><span>' + k[1] + '<br><span class="pieni">' + k[2] + '</span></span><input type="checkbox" data-c="' + k[0] + '"' + (T.as[k[0]] ? ' checked' : '') + '></label>').join('') +
     '<div class="pieni">Lähteet: sää Open-Meteo (säämallin ennuste, ei mittaus), AIS Fintraffic / Digitraffic, satamat OpenStreetMap. Haettaessa palvelut näkevät, mitä kartan aluetta katsot.</div>' +
-    '<div class="pieni" id="satamaTila">' + (st => st ? 'Satamatiedot: ' + st.lista.length + ' kohdetta, päivätty ' + pvm(st.haettu) + '.' : '')(lisa.satamat || (typeof SATAMAT_PAKETTI !== 'undefined' ? SATAMAT_PAKETTI : null)) + '</div>' +
+    '<div class="pieni" id="satamaTila">' + (st => st ? 'Satamatiedot: ' + st.lista.length + ' kohdetta, päivätty ' + pvm(st.haettu) + '.' : '')(lisa.satamat || satamaPaketti()) + '</div>' +
     '<div class="napit"><button class="nappi pien" data-a="satamatPaivita">Päivitä satamatiedot verkosta</button></div></div>' +
     '<div class="kortti"><h2>Kallistusmittari</h2><label class="kytkin"><span>Näytä kallistus kartalla</span><input type="checkbox" data-c="kallistus"' + (T.as.kallistus ? ' checked' : '') + '></label>' +
     '<div class="pieni" id="kallNyt"></div><div class="pieni">Käyttää puhelimen asentoanturia. Kiinnitä puhelin tukevasti telineeseen näyttö itseesi päin (tai laske se tasaiselle alustalle yläreuna keulaan päin) ja paina Nollaa, kun vene on suorassa. Lukema kertoo puhelimen asennon: irrallaan oleva puhelin, kiihdytykset, käännökset ja aallokko vääristävät sitä.</div>' +
@@ -352,6 +352,7 @@ function nLisaa() {
     '<div class="kortti"><h2>Varmuuskopio</h2><div class="pieni">Tiedot ovat vain tämän puhelimen selaimessa. Jos selaimen tiedot tyhjennetään tai puhelin vaihtuu, ne häviävät – vie kopio talteen säännöllisesti.' + (T.kopio ? ' Viimeisin kopio ' + pvm(T.kopio) + '.' : ' Kopiota ei ole vielä otettu.') + (vanha ? ' <b>Ota uusi kopio.</b>' : '') + '</div>' +
     '<div class="napit"><button class="nappi paa" data-a="vie">Vie varmuuskopio</button><button class="nappi" data-a="tuo">Palauta kopiosta</button></div><input type="file" id="tuoTiedosto" accept=".json,application/json" hidden></div>' +
     '<div class="kortti"><h2>Kartat ja väylätiedot ilman verkkoa</h2><div class="pieni">Alla olevat napit lataavat laitteelle valitun merialueen merikartan sekä väylät, merimerkit ja nopeusrajoitusalueet. Alueet ladataan erikseen. Reitti kulkee alueelta toiselle, kun vierekkäiset alueet on ladattu (Suomenlahti–Saaristomeri–Selkämeri). Merikartan katsotut alueet tallentuvat laitteelle myös itsestään; kartalla näkyvän alueen saat talteen kartan tasonapista (alin pyöreä nappi).<span id="karttaTila"></span></div><div class="napit">' + alueNapit() + '<button class="nappi vaara" data-a="tyhjennaKartat">Poista tallennetut kartat</button></div></div>' +
+    '<div class="kortti"><h2>Norjan rannikko</h2><div class="pieni">Norjan merikartta (Kartverket) näkyy automaattisesti, kun kartta on Norjan vesillä, ja sen saa myös valittua karttapohjaksi. Alla olevat napit lataavat alueen kartan laitteelle, jolloin se näkyy ilman verkkoa. Norjasta on vain kartta: väylätiedot, nopeusrajoitukset ja syvyyskäyrät eivät kata Norjaa.</div><div class="pieni">Norjan merikartalla satamat ja väylät ovat päällä automaattisesti. Väylät (Kystverketin pää- ja sivuväylät, noin 1 Mt koko maasta) haetaan itsestään, kun Norjan kartta avataan verkossa ensimmäisen kerran; alla olevalla napilla ne voi päivittää. Väylät piirtyvät kartalle violetteina viivoina, ja reittisuunnittelu osaa kulkea niitä pitkin. Väylissä ei ole kulkusyvyyttä eikä merimerkkejä, joten veneen syväystä ei huomioida Norjassa.</div><div class="napit"><button class="nappi paa" data-a="lataaNorjaVaylat">Lataa Norjan väylät</button>' + NORJA.map(a => '<button class="nappi" data-a="lataaNorja" data-id="' + a.id + '">' + a.nimi + '</button>').join('') + '</div></div>' +
     '<div class="kortti"><h2>Kalapaikat (' + T.kalapaikat.length + ')</h2>' + (T.kalapaikat.length ? '<div class="plista">' + T.kalapaikat.map(k => '<div class="rivi" data-a="kalapaikkaAvaa" data-id="' + k.id + '"><div class="v"><b>' + e(k.nimi) + '</b><span class="pieni">' + (k.lajit ? e(k.lajit) + ' · ' : '') + koord(k.lat, k.lon) + '</span></div><span class="pieni">Avaa</span></div>').join('') + '</div>'
       : '<div class="pieni">Ei vielä kalapaikkoja. Lisää paikka kartan kalanapista: omaan sijaintiin tai napauttamalla karttaa. Paikat näkyvät kartalla kalan kuvana, ja ne tallentuvat vain tälle laitteelle ja varmuuskopioon.</div>') + '</div>' +
     '<div class="kortti"><h2>Syvyyskäyrät</h2><div class="pieni">Merikartan syvyyskäyrät (3, 6, 10, 20 metriä ja muut kartoitetut syvyydet) omana karttatasonaan, josta matalikot, penkat ja syvänteiden reunat erottuvat selvästi. Käyrät ladataan alueittain laitteelle, minkä jälkeen ne näkyvät ilman verkkoa. Näkyviin ne kytketään kartan tasonapista kohdasta Syvyyskäyrät.</div>' +
@@ -385,7 +386,7 @@ function piirra() {
 // Karttapohjat. Merikartta on Traficomin avoin rasterimerikartta (WMTS), maastokartta OpenStreetMap.
 // Merikartan palat tallennetaan laitteelle (IndexedDB "laatat"), joten katsottu tai ladattu alue toimii ilman verkkoa.
 const KARTAT = {
-  meri: { id: 'meri', nimi: 'Merikartta (vanha)', maxZ: 15, talteen: true, tekija: 'Merikartta © Traficom, CC BY 4.0. Ei navigointiin.',
+  meri: { id: 'meri', nimi: 'Suomen merikartta rasteri', maxZ: 15, talteen: true, tekija: 'Merikartta © Traficom, CC BY 4.0. Ei navigointiin.',
     url: (z, x, y) => 'https://julkinen.traficom.fi/rasteripalvelu/wmts?service=WMTS&request=GetTile&version=1.0.0&layer=Traficom%3A' + (z < 10 ? 'Yleiskartat%20250k' : 'Merikarttasarjat') + '%20public&style=&tilematrixset=WGS84_Pseudo-Mercator&tilematrix=WGS84_Pseudo-Mercator%3A' + z + '&tilerow=' + y + '&tilecol=' + x + '&format=image%2Fpng' },
   satama: { id: 'satama', minZ: 14, talteen: true, url: (z, x, y) => 'https://julkinen.traficom.fi/rasteripalvelu/wmts?service=WMTS&request=GetTile&version=1.0.0&layer=Traficom%3ASatamakartat&style=&tilematrixset=WGS84_Pseudo-Mercator&tilematrix=WGS84_Pseudo-Mercator%3A' + z + '&tilerow=' + y + '&tilecol=' + x + '&format=image%2Fpng' },
   maa: { id: 'maa', nimi: 'Maastokartta', maxZ: 17, talteen: false, tekija: 'Kartta © OpenStreetMapin tekijät. Näkyy vain verkossa.', url: (z, x, y) => 'https://tile.openstreetmap.org/' + z + '/' + x + '/' + y + '.png' }
@@ -402,11 +403,16 @@ function s57Url(z, x, y, tyyli) {
 }
 // wms = jokainen onnistunut vastaus on kuva (virhe tulee XML:nä), tyhja = tätä pienempi pala on tyhjä tai yksivärinen (mitattu 520–534 tavua),
 // rinnakkain ja tauko = latauksen tahti, arvio = mittaukset 2026-11-23: Mt / pala ja palaa sekunnissa (vaihteluväli)
-KARTAT.s57 = { id: 's57', avain: 's57|' + S57_TYYLI + '|png8', nimi: 'Merikartta S-57', maxZ: 15, nakyZ: 17.5, talteen: true, wms: true, tyhja: 600, rinnakkain: 2, tauko: 80,
+KARTAT.s57 = { id: 's57', avain: 's57|' + S57_TYYLI + '|png8', nimi: 'Suomen merikartta S-57', maxZ: 15, nakyZ: 17.5, talteen: true, wms: true, tyhja: 600, rinnakkain: 2, tauko: 80,
   tekija: 'Lähde: Traficom. Ei navigointikäyttöön. Ei täytä asianmukaisen merikartan vaatimuksia.',
   arvio: { pala: 0.022, osuus: 0.6, k14: 0.014, k15: 0.005, nopeus: [1, 2] },
   url: (z, x, y) => z < 8 ? KARTAT.meri.url(z, x, y) : s57Url(z, x, y) };
-const POHJAT = ['s57', 'meri', 'maa'];
+// Norjan merikartta: Kartverketin avoin karttapalvelu (WMTS-välimuisti, taso sjokartraster), tavalliset z/y/x-palat tasoilla 4–18 (mitattu 2026-11-24).
+// Tyhjä pala on 334–857 tavua. Karttaa käytetään automaattisesti Norjan vesillä (nayttoKartta), vaikka valittuna on Suomen merikartta.
+KARTAT.norja = { id: 'norja', nimi: 'Norjan merikartta rasteri', maxZ: 16, talteen: true, tekija: 'Merikartta © Kartverket, CC BY 4.0. Ei navigointikäyttöön.',
+  arvio: { pala: 0.02, osuus: 0.6, k14: 0.012, k15: 0.008, nopeus: [4, 10] },
+  url: (z, x, y) => 'https://cache.kartverket.no/v1/wmts/1.0.0/sjokartraster/default/webmercator/' + z + '/' + y + '/' + x + '.png' };
+const POHJAT = ['s57', 'meri', 'norja', 'maa'];
 // Oletuspohja vaihtui S-57:ään 2026-11-23: aiemmin tallennettu oletus (vanha merikartta) vaihdetaan kerran, sen jälkeen käyttäjän valinta pysyy.
 function karttaOletus(vanha) { if (vanha && vanha.karttaV >= 2) return; if (T.as.kartta === 'meri') T.as.kartta = 's57'; T.as.karttaV = 2; }
 // Kartan kierto piirron aikana (radiaaneina): pysty() kääntää merkin ja sen tekstin takaisin pystyyn, kun kartta on käännetty kulkusuuntaan.
@@ -416,7 +422,7 @@ const pysty = (c, x, y) => { c.save(); if (kKierto || kVenytys !== 1) { c.transl
 // S-57 ilman merimerkkien nimiä ("by Tero", "bn Harakka") ja loistojen tunnuksia ("Fl(1)G 3s 2M"): palvelun tyyli 202. Syvyysluvut ja symbolit ovat samat.
 // Valinta T.as.s57Nimet (kartan valikko). Palat tallentuvat omalla avaimellaan, joten talteen ladattu kartta on valintakohtainen.
 const S57_TYYLI_B = 'style-id-202';
-KARTAT.s57b = Object.assign({}, KARTAT.s57, { avain: 's57|' + S57_TYYLI_B + '|png8', nimi: 'Merikartta S-57 (ilman merimerkkien nimiä)', url: (z, x, y) => z < 8 ? KARTAT.meri.url(z, x, y) : s57Url(z, x, y, S57_TYYLI_B) });
+KARTAT.s57b = Object.assign({}, KARTAT.s57, { avain: 's57|' + S57_TYYLI_B + '|png8', nimi: 'Suomen merikartta S-57 (ilman merimerkkien nimiä)', url: (z, x, y) => z < 8 ? KARTAT.meri.url(z, x, y) : s57Url(z, x, y, S57_TYYLI_B) });
 const s57K = () => T.as.s57Nimet === false ? KARTAT.s57b : KARTAT.s57;
 const pohja = () => POHJAT.includes(T.as.kartta) ? T.as.kartta : 's57';
 const kartta = () => pohja() === 's57' ? s57K() : KARTAT[pohja()];
@@ -623,7 +629,8 @@ class Kartta {
       // Lähelle zoomattaessa päälle piirretään tarkempi satamakartta siellä, missä sellainen on.
       if (K.paalle && zi >= K.paalle.minZ) { const s = haeLaatta(K.paalle, zi, tx, ty); if (s) { c.drawImage(s, dx, dy, L + .6, L + .6); tarkkoja++; } }
     }
-    cv.dataset.laatat = piirretty; cv.dataset.tarkkoja = tarkkoja;
+    cv.dataset.laatat = piirretty; cv.dataset.tarkkoja = tarkkoja; cv.dataset.pohja = K.id;
+    if (this === kLive) { const te = $('#kTekija'); if (te && te.textContent !== K.tekija) te.textContent = K.tekija; }      // lähdemerkintä seuraa näytettävää karttaa
     const X = lon => mx(lon, v.z) - ox, Y = lat => my(lat, v.z) - oy, pts = this.pts;
     const piste = (p, vari) => { c.beginPath(); c.arc(X(p[2]), Y(p[1]), 6, 0, 7); c.fillStyle = vari; c.fill(); c.lineWidth = 2.5; c.strokeStyle = '#fff'; c.stroke(); };
     c.lineJoin = c.lineCap = 'round';
@@ -647,6 +654,8 @@ class Kartta {
     if (pts.length) piste(pts[0], '#1f8a4c');
     if (this.lisat) { this.lisat(c, X, Y, W, H, v.z); lisatAjasta(); }
     const b = this.vene;
+    // 3D-näkymässä vene on kartan päällä oleva kolmiulotteisen näköinen kuva (vene3d), ei kartan pintaan piirretty litteä merkki
+    const kuvana = this === kLive && vene3d(this, b, b ? X(b.lon) : 0, b ? Y(b.lat) : 0, W, H);
     if (!b) { if (pts.length) piste(pts[pts.length - 1], '#c0392b'); return; }
     // Suuntaviiva: punainen katkoviiva veneen keulasta kulkusuuntaan ruudun reunaan asti. Näytetään vain, kun sijainti on tuore ja kulkusuunta tiedossa.
     const viiva = !!(this.suuntaviiva && b.suunta != null && !b.himmea); cv.dataset.suuntaviiva = viiva ? '1' : '0';
@@ -655,11 +664,20 @@ class Kartta {
       for (const [w, vari, katko] of [[7.5, 'rgba(255,255,255,.9)', []], [3.6, '#e01b24', [13, 9]]]) { c.setLineDash(katko); c.lineCap = 'butt'; c.lineWidth = w; c.strokeStyle = vari; c.beginPath(); c.moveTo(x0 + dx * 20, y0 + dy * 20); c.lineTo(x0 + dx * pit, y0 + dy * pit); c.stroke(); }
       c.setLineDash([]); c.lineCap = 'round';
     }
+    if (kuvana) return;
     // Oma vene ylhäältä päin, keula kulkusuuntaan.
     c.save(); c.translate(X(b.lon), Y(b.lat)); c.rotate((b.suunta || 0) * RAD);
-    c.beginPath(); c.moveTo(0, -19); c.bezierCurveTo(10, -9, 10, 5, 8, 15); c.lineTo(-8, 15); c.bezierCurveTo(-10, 5, -10, -9, 0, -19); c.closePath();
-    c.fillStyle = b.himmea ? '#7d8a94' : '#0f2a43'; c.fill(); c.lineWidth = 3; c.strokeStyle = '#fff'; c.stroke();
-    c.beginPath(); c.moveTo(0, -8); c.lineTo(4.5, 0); c.lineTo(4.5, 9); c.lineTo(-4.5, 9); c.lineTo(-4.5, 0); c.closePath(); c.fillStyle = '#fff'; c.fill();
+    // Sama vene kuin 3D-näkymän kuvassa (VENE3D), suoraan ylhäältä: valkoinen kansi, tumma reunus, tuulilasi, hytin katto, punainen perälista ja perämoottori.
+    const tumma = b.himmea ? '#7d8a94' : '#0f2a43', runko = () => { c.beginPath(); c.moveTo(0, -22); c.bezierCurveTo(11, -11, 12.5, 6, 10, 18); c.lineTo(-10, 18); c.bezierCurveTo(-12.5, 6, -11, -11, 0, -22); c.closePath(); };
+    c.lineJoin = 'round';
+    c.fillStyle = b.himmea ? '#5d6f7d' : '#12222f'; c.beginPath(); c.rect(-3.2, 17, 6.4, 6.5); c.fill();      // perämoottori
+    runko(); c.lineWidth = 6.5; c.strokeStyle = 'rgba(255,255,255,.95)'; c.stroke();                           // vaalea reunus erottaa veneen kartasta
+    runko(); c.fillStyle = b.himmea ? '#d5dbdf' : '#f4f7f9'; c.fill(); c.lineWidth = 2.4; c.strokeStyle = tumma; c.stroke();
+    c.beginPath(); c.moveTo(-8.6, 15); c.lineTo(8.6, 15); c.lineWidth = 2.2; c.strokeStyle = b.himmea ? '#9aa7b1' : '#e01b24'; c.stroke();      // perälista
+    c.lineWidth = 1.3; c.strokeStyle = tumma;
+    c.beginPath(); c.moveTo(-6, -7); c.lineTo(6, -7); c.lineTo(7.6, -0.5); c.lineTo(-7.6, -0.5); c.closePath(); c.fillStyle = b.himmea ? '#b9c4cb' : '#8fcbe0'; c.fill(); c.stroke();      // tuulilasi
+    c.beginPath(); c.rect(-7.6, -0.5, 15.2, 10); c.fillStyle = b.himmea ? '#c4ccd1' : '#e3eaee'; c.fill(); c.stroke();      // hytin katto
+    c.beginPath(); c.moveTo(-3.6, -15); c.quadraticCurveTo(0, -19.5, 3.6, -15); c.strokeStyle = '#8a98a3'; c.stroke();      // keulakaide
     c.restore();
   }
 }
@@ -668,6 +686,32 @@ const seuraaMerkki = () => { const b = $('#lKarttaK'); if (b) b.classList.toggle
 const kiertoNyt = () => T.as.keulaYlos && kulku != null ? -kulku * RAD : 0;
 // 3D-näkymä: pääkartan piirtoalusta suurennetaan ja kallistetaan CSS:n perspektiivillä 45° taaksepäin niin, että vene on ruudun alaosassa ja edessä oleva alue näkyy pitkälle.
 // Mitat lasketaan ruudun koosta: P = katseluetäisyys, by = veneen korkeus ruudulla, ala = alustaa veneen takana, dmax = alustaa veneen edessä.
+// 3D-näkymän vene: takaa ja yläviistosta kuvattu vene, joka sijoitetaan veneen kohtaan näytöllä ja pysyy pystyssä.
+// Kohta lasketaan samalla projektiolla kuin kallistettu kartta: x, y = veneen paikka piirtoalueella, vW, vH = piirtoalueen koko.
+// Palauttaa true, kun kuva hoitaa veneen näyttämisen (litteää merkkiä ei silloin piirretä).
+const VENE3D = '<svg viewBox="0 0 80 100" aria-hidden="true"><ellipse cx="42" cy="72" rx="25" ry="27" fill="rgba(0,0,0,.2)"/>' +
+  '<path d="M22 70L58 70L55 85Q40 90 25 85Z" fill="#0f2a43"/><path d="M24 78Q40 83 56 78" fill="none" stroke="#e01b24" stroke-width="2.4"/>' +
+  '<rect x="35.5" y="83" width="9" height="11" rx="2.5" fill="#12222f"/>' +
+  '<path d="M40 7C56 21 60 44 58 70L22 70C20 44 24 21 40 7Z" fill="#f4f7f9" stroke="#0f2a43" stroke-width="2.2" stroke-linejoin="round"/>' +
+  '<path d="M33 23Q40 13 47 23" fill="none" stroke="#8a98a3" stroke-width="1.6" stroke-linecap="round"/>' +
+  '<path d="M30 32L50 32L53 44L27 44Z" fill="#8fcbe0" stroke="#0f2a43" stroke-width="1.6" stroke-linejoin="round"/>' +
+  '<path d="M27 44L53 44L52 58L28 58Z" fill="#e3eaee" stroke="#0f2a43" stroke-width="1.6" stroke-linejoin="round"/>' +
+  '<path d="M28 58L52 58L52 65L28 65Z" fill="#aab8c1" stroke="#0f2a43" stroke-width="1.6" stroke-linejoin="round"/><rect x="36" y="59.5" width="8" height="5.5" fill="#0f2a43"/></svg>';
+function vene3d(k, b, x, y, vW, vH) {
+  const el = $('#kVene3d'); if (!el) return false;
+  const K = k.kall; if (!K || !b) { el.hidden = true; return false; }
+  const a = k.ankkuri(), kr = k.kierto || 0, co = Math.cos(kr), si = Math.sin(kr), qx = x - vW / 2, qy = y - vH / 2;
+  const px = a[0] + qx * co - qy * si, py = a[1] + qx * si + qy * co, d = a[1] - py, m = K.P / (K.P + d * Math.sin(K.th));
+  let rel = ((b.suunta || 0) * RAD + kr) % (2 * Math.PI); if (rel > Math.PI) rel -= 2 * Math.PI; if (rel < -Math.PI) rel += 2 * Math.PI;
+  // kuva on piirretty takaapäin: jos vene ei osoita näytöllä suunnilleen ylöspäin tai projektio ei kelpaa, käytetään litteää merkkiä
+  if (!(m > 0.25 && m < 3) || Math.abs(rel) > 50 * RAD) { el.hidden = true; return false; }
+  const sx = K.bx + (px - k.cv.clientWidth / 2) * m, sy = K.by - d * Math.cos(K.th) * m;
+  el.hidden = sx < -60 || sx > K.W + 60 || sy < -60 || sy > K.H + 80;
+  el.classList.toggle('himmea', !!b.himmea);
+  el.style.transform = 'translate(' + sx.toFixed(1) + 'px,' + sy.toFixed(1) + 'px) translate(-50%,-62%) scale(' + rajaa(m, .55, 1.25).toFixed(3) + ') rotate(' + (rel / RAD).toFixed(1) + 'deg)';
+  el.dataset.x = Math.round(sx); el.dataset.y = Math.round(sy);
+  return true;
+}
 function kallistusAseta() {
   const cv = kLive.cv, p = cv.parentElement;
   if (!T.as.kartta3d) { if (kLive.kall) { kLive.kall = null; cv.style.cssText = ''; p.style.perspective = p.style.perspectiveOrigin = ''; p.classList.remove('k3d'); } return; }
@@ -711,7 +755,7 @@ function liveKartta() {
 // Kartta-alueen lataus talteen: päänäkymässä näkyvä alue valitulla tarkkuudella.
 const LAATTARAJA = 4000, LAATTAKOKO = 0.09;      // Mt / pala, arvio koelatauksista
 function lataaAlueIkkuna() {
-  if (!kartta().talteen) { ilmoita('Vain merikartan voi ladata talteen. Vaihda karttapohjaksi Merikartta S-57 tai Merikartta (vanha).'); return; }
+  if (!kartta().talteen) { ilmoita('Vain merikartan voi ladata talteen. Vaihda karttapohjaksi jokin merikartoista.'); return; }
   if (!kLive) return;
   const K = nayttoKartta(lv), palaMt = K.arvio ? K.arvio.pala : LAATTAKOKO;
   if (!navigator.onLine) { ilmoita('Lataus vaatii verkkoyhteyden.'); return; }
@@ -746,10 +790,52 @@ const ALUEET = [
   { id: 'paijanne', nimi: 'Päijänne', kuvaus: 'Lahdesta ja Heinolasta Jyväskylään', avain: 'vaylat-paijanne', vaylaMt: 3, kartta: 'meri', b: { lo0: 24.9, lo1: 26.1, la0: 60.95, la1: 62.30 } },
   { id: 'nasijarvi', nimi: 'Näsijärvi', kuvaus: 'Tampereelta Ruovedelle ja Virroille', avain: 'vaylat-nasijarvi', vaylaMt: 2, kartta: 'meri', b: { lo0: 23.4, lo1: 24.2, la0: 61.45, la1: 62.30 } }
 ];
+// Norjan rannikko ladattavina alueina (vain kartta: väylätiedot, rajoitusalueet ja syvyyskäyrät ovat Suomen viranomaisilta eivätkä kata Norjaa).
+// Samoista rajoista päätellään, milloin kartan keskikohta on Norjan vesillä.
+const NORJA = [
+  { id: 'no-oslo', nimi: 'Oslonvuono ja Skagerrak', kuvaus: 'Ruotsin rajalta Oslon kautta Kristiansandiin', b: { lo0: 8.0, lo1: 11.6, la0: 57.9, la1: 59.95 } },
+  { id: 'no-etela', nimi: 'Lounaisrannikko', kuvaus: 'Kristiansandista Lindesnesin ympäri Stavangeriin', b: { lo0: 4.8, lo1: 8.0, la0: 57.9, la1: 59.5 } },
+  { id: 'no-lansi', nimi: 'Länsi-Norjan vuonot', kuvaus: 'Haugesund, Hardangerinvuono, Bergen ja Sognevuono', b: { lo0: 4.4, lo1: 7.8, la0: 59.5, la1: 61.4 } },
+  { id: 'no-more', nimi: 'Nordfjord ja Møre', kuvaus: 'Florøstä Ålesundin ja Geirangerin kautta Kristiansundiin', b: { lo0: 4.6, lo1: 9.0, la0: 61.4, la1: 63.3 } },
+  { id: 'no-trondelag', nimi: 'Trøndelag', kuvaus: 'Trondheiminvuono ja rannikko Rørvikiin', b: { lo0: 7.5, lo1: 12.5, la0: 63.3, la1: 65.2 } },
+  { id: 'no-helgeland', nimi: 'Helgeland ja Bodø', kuvaus: 'Brønnøysundista Bodøhön', b: { lo0: 10.5, lo1: 16.5, la0: 65.2, la1: 67.6 } },
+  { id: 'no-lofootit', nimi: 'Lofootit ja Vesterålen', kuvaus: 'Vestfjorden, Lofootit, Vesterålen ja Narvik', b: { lo0: 11.5, lo1: 17.5, la0: 67.6, la1: 69.4 } },
+  { id: 'no-tromssa', nimi: 'Tromssa', kuvaus: 'Senja, Tromssa ja Lyngen', b: { lo0: 16.5, lo1: 22.5, la0: 68.9, la1: 70.5 } },
+  { id: 'no-finnmark', nimi: 'Finnmark', kuvaus: 'Altasta Nordkappin kautta Kirkkoniemeen', b: { lo0: 21.5, lo1: 31.5, la0: 69.6, la1: 71.4 } }
+];
+// Norjan väylät (Kystverket: Hovedled og biled) ovat pieni aineisto, joten koko maa ladataan kerralla omana väyläalueenaan.
+const NORJA_VAYLA = { id: 'norja', nimi: 'Norja', avain: 'vaylat-norja', norja: true };
+const VAYLA_ALUEET = ALUEET.concat([NORJA_VAYLA]);
+const NORJA_VAYLA_URL = 'https://services.kystverket.no/wfs.ashx?service=WFS&version=1.1.0&request=GetFeature&srsName=EPSG:4326&typeName=layer_552';
+async function lataaVaylatNorja(edistys, alue) {
+  if (edistys) edistys('Haetaan Norjan väyliä…');
+  const r = await fetch(NORJA_VAYLA_URL); if (!r.ok) throw new Error('HTTP ' + r.status);
+  const d = farledMuunna(await r.text()); if (d.linjat.length < 100) throw new Error('väyliä ei saatu');
+  await DB.put('kv', { haettu: Date.now(), nimet: d.nimet, linjat: d.linjat, merkit: [], rajoitukset: [] }, alue.avain);
+  vayla = null; verkko = null; return vaylatMuistiin();
+}
+// Norjan väylälinjat piirtoa varten: jokaiselle linjalle rajat (näkymän ulkopuoliset ohitetaan) ja tieto pääväylästä.
+const linjaRajat = (linjat, nimet) => linjat.map(l => { const b = [180, 90, -180, -90]; for (let i = 0; i < l.p.length; i += 2) { b[0] = Math.min(b[0], l.p[i]); b[2] = Math.max(b[2], l.p[i]); b[1] = Math.min(b[1], l.p[i + 1]); b[3] = Math.max(b[3], l.p[i + 1]); } return { p: l.p, b, paa: /\(pääväylä\)$/.test(nimet[l.j] || '') }; });
+// Norjan merikartassa väylälinjoja ei ole piirretty, joten ne piirretään kartan päälle: pääväylä yhtenäisenä, sivuväylä katkoviivana.
+function piirraNorjaVaylat(c, X, Y, W, H, z) {
+  if (!norjaLinjat || !norjaNyt() || z < 7) return;      // näkyvät aina Norjan merikartalla, ei erillistä valintaa
+  c.save(); c.lineJoin = c.lineCap = 'round'; c.globalAlpha = .8;
+  for (const paa of [false, true]) {
+    c.beginPath(); let n = 0;
+    for (const l of norjaLinjat) { if (l.paa !== paa || X(l.b[2]) < 0 || X(l.b[0]) > W || Y(l.b[1]) < 0 || Y(l.b[3]) > H) continue; n++; for (let i = 0; i < l.p.length; i += 2) i ? c.lineTo(X(l.p[i]), Y(l.p[i + 1])) : c.moveTo(X(l.p[i]), Y(l.p[i + 1])); }
+    if (!n) continue;
+    c.setLineDash([]); c.lineWidth = paa ? 5 : 4; c.strokeStyle = 'rgba(255,255,255,.75)'; c.stroke();
+    c.setLineDash(paa ? [] : [9, 7]); c.lineWidth = paa ? 2.4 : 1.7; c.strokeStyle = '#6a1b9a'; c.stroke();
+  }
+  c.restore();
+}
 const alueKartta = a => a.kartta === 's57' ? s57K() : a.kartta ? KARTAT[a.kartta] : latausKartta();
 // Näytettävä karttapohja kartan keskikohdassa: S-57:n katvealueilla (Päijänne, Näsijärvi) näytetään automaattisesti vanha merikartta.
 function nayttoKartta(v) {
-  const K = kartta(); if (!K.wms) return K;
+  const K = kartta(); if (K.id === 'maa' || K.id === 'norja') return K;
+  // Norjan vesillä näytetään Norjan merikartta, koska Suomen kartat eivät ulotu sinne
+  if (v.z >= 5.5 && norjassa(v.lat, v.lon, NORJA)) return KARTAT.norja;
+  if (!K.wms) return K;
   for (const a of ALUEET) if (a.kartta === 'meri' && v.lon >= a.b.lo0 && v.lon < a.b.lo1 && v.lat >= a.b.la0 && v.lat < a.b.la1) return KARTAT.meri;
   return K;
 }
@@ -791,8 +877,8 @@ async function lataaAlueKokoIkkuna(alue) {
   let tilaa = '';
   try { const s = await navigator.storage.estimate(); if (s && s.quota) { const vapaa = (s.quota - (s.usage || 0)) / 1048576; tilaa = ' Selain antaa sovellukselle tilaa vielä noin ' + (vapaa > 2000 ? n(vapaa / 1024, 1) + ' Gt' : Math.round(vapaa) + ' Mt') + '.' + (vapaa < mt ? ' <b>Se ei ehkä riitä koko lataukseen.</b>' : ''); } } catch (x) { }
   d.innerHTML = '<form method="dialog"><h3>Lataa kartta ja väylätiedot: ' + alue.nimi + '</h3><div class="pieni">' + K.nimi + ' ' + alue.kuvaus + ' tarkkuudella, jolla väylät, syvyydet ja merimerkit erottuvat. ' + lista.length + ' karttapalaa, arviolta ' + mt + ' Mt ja ' + (ar.nopeus ? kesto(lista.length) : min(15) + '–' + min(40) + ' minuuttia') + '.' + tilaa + '</div>' +
-    (alue.kartta === 'meri' ? '<div class="pieni">Tältä alueelta ei ole S-57-karttaa, joten talteen ladataan vanha merikartta. Sovellus näyttää sen täällä automaattisesti, vaikka karttapohjaksi on valittu S-57.</div>' : '') +
-    (K.wms ? '<div class="pieni">Karttapalvelu piirtää jokaisen S-57-palan pyynnöstä, joten lataus on selvästi hitaampi kuin vanhalla merikartalla ja paloja haetaan vain kaksi kerrallaan. Ajat ja koot ovat arvioita pienestä otoksesta. Vanhan merikartan palat säilyvät laitteella erikseen.</div>' : '') +
+    (alue.kartta === 'meri' ? '<div class="pieni">Tältä alueelta ei ole S-57-karttaa, joten talteen ladataan rasterimerikartta. Sovellus näyttää sen täällä automaattisesti, vaikka karttapohjaksi on valittu S-57.</div>' : '') +
+    (K.wms ? '<div class="pieni">Karttapalvelu piirtää jokaisen S-57-palan pyynnöstä, joten lataus on selvästi hitaampi kuin rasterimerikartalla ja paloja haetaan vain kaksi kerrallaan. Ajat ja koot ovat arvioita pienestä otoksesta. Rasterimerikartan palat säilyvät laitteella erikseen.</div>' : '') +
     '<h4>Kartan tarkkuus</h4>' + tarkkuudet.map(t => '<label class="cb"><input type="radio" name="tark" value="' + t[0] + '"' + (t[0] === 13 ? ' checked' : '') + '><span><b>' + t[1] + '</b> – ' + t[2] + (t[3] ? '<br><span class="pieni">' + t[3] + '</span>' : '') + '</span></label>').join('') +
     '<div class="pieni">Perustarkkuudella kartta ei tarkennu ilman verkkoa, kun zoomaat lähelle. Tarkat tasot ladataan vain sieltä, missä kartassa on sisältöä; avomeri jää perustarkkuuteen. Tarkemman tason voi ladata myöhemmin samasta napista – jo ladatut palat ohitetaan.</div>' +
     '<div class="pieni">Samalla ladataan alueen väylät, merimerkit ja nopeusrajoitusalueet (noin ' + alue.vaylaMt + ' Mt), jolloin myös reittisuunnittelu, reitin seuranta ja rajoitusvaroitukset toimivat ilman verkkoa.</div>' +
@@ -826,12 +912,47 @@ async function lataaAlueKokoIkkuna(alue) {
   };
   d.showModal();
 }
+// Norjan alueen lataus talteen: pelkkä merikartta (tasot 8–13 ja halutessa tarkemmat sieltä, missä kartassa on sisältöä).
+async function lataaNorjaIkkuna(alue) {
+  if (!navigator.onLine) { ilmoita('Lataus vaatii verkkoyhteyden.'); return; }
+  const K = KARTAT.norja, ar = K.arvio, lista = laattaLista(alue.b, 8, 13), d = $('#dlg'), tila = { peru: false, K };
+  const n13 = laattaLista(alue.b, 13, 13).length, e14 = Math.round(n13 * ar.osuus * 4 / 100) * 100, e15 = Math.round(e14 * 4 * 0.85 / 100) * 100, kymp = x => Math.max(10, Math.round(x / 10) * 10);
+  const tarkkuudet = [[13, 'Perus', 'väylät, syvyydet ja merimerkit erottuvat', lista.length + ' palaa, arviolta ' + kymp(lista.length * ar.pala) + ' Mt'],
+    [14, 'Tarkka', 'lisäksi tarkempi taso rannikolta ja vuonoista', 'noin ' + e14 + ' palaa lisää, arviolta ' + kymp(e14 * ar.k14) + ' Mt'],
+    [15, 'Tarkin', 'kaksi tarkempaa tasoa rannikolta ja vuonoista', 'noin ' + (e14 + e15) + ' palaa lisää, arviolta ' + kymp(e14 * ar.k14 + e15 * ar.k15) + ' Mt']];
+  let tilaa = '';
+  try { const s = await navigator.storage.estimate(); if (s && s.quota) { const vapaa = (s.quota - (s.usage || 0)) / 1048576; tilaa = ' Selain antaa sovellukselle tilaa vielä noin ' + (vapaa > 2000 ? n(vapaa / 1024, 1) + ' Gt' : Math.round(vapaa) + ' Mt') + '.' + (vapaa < lista.length * ar.pala ? ' <b>Se ei ehkä riitä koko lataukseen.</b>' : ''); } } catch (x) { }
+  d.innerHTML = '<form method="dialog"><h3>Lataa Norjan merikartta: ' + alue.nimi + '</h3><div class="pieni">' + alue.kuvaus + '. Koot ovat arvioita pienestä otoksesta.' + tilaa + '</div>' +
+    '<div class="pieni">Norjasta ladataan vain merikartta (Kartverket). Väylätiedot, reititys väyliä pitkin, nopeusrajoitusalueet ja syvyyskäyrät eivät kata Norjaa. Oman reitin voi piirtää kartalle. Ei navigointikäyttöön.</div>' +
+    '<h4>Kartan tarkkuus</h4>' + tarkkuudet.map(t => '<label class="cb"><input type="radio" name="tark" value="' + t[0] + '"' + (t[0] === 13 ? ' checked' : '') + '><span><b>' + t[1] + '</b> – ' + t[2] + '<br><span class="pieni">' + t[3] + '</span></span></label>').join('') +
+    '<div class="pieni">Käytä Wi-Fiä ja pidä sovellus auki latauksen ajan. Jos lataus keskeytyy, paina samaa nappia uudelleen – jo ladatut palat ohitetaan.</div>' +
+    '<progress id="lEd" value="0" max="1" hidden></progress><div class="pieni" id="lTeksti"></div>' +
+    '<div class="napit"><button type="button" class="nappi" id="lPeru">Sulje</button><button type="button" class="nappi paa" id="lOk">Lataa</button></div></form>';
+  d.querySelector('#lPeru').onclick = () => { tila.peru = true; d.close(); };
+  d.querySelector('#lOk').onclick = async () => {
+    const ed = d.querySelector('#lEd'), tx = d.querySelector('#lTeksti'), maxZ = +((d.querySelector('input[name=tark]:checked') || {}).value || 13);
+    d.querySelector('#lOk').disabled = true; d.querySelectorAll('input[name=tark]').forEach(x => x.disabled = true); d.querySelector('#lPeru').textContent = 'Keskeytä'; ed.hidden = false;
+    try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (x) { }
+    tila.tavut = 0; tila.virhe = false; naytto(true);
+    // Norjan väylät samalla, jos niitä ei ole tai ne ovat yli vuorokauden vanhat
+    await vaylatMuistiin(); if (!(vayla && vayla.osat.norja && Date.now() - vayla.osat.norja.haettu < 864e5)) try { await lataaVaylat(t => { tx.textContent = t; }, NORJA_VAYLA); } catch (x) { }
+    const r = await lataaLaatat(lista, (k, kaikki, lisa) => { ed.value = k / kaikki; tx.textContent = k + ' / ' + kaikki + ' palaa (' + Math.round(k / kaikki * 100) + ' %)' + (lisa || ''); }, tila);
+    const rt = !tila.peru && maxZ > 13 ? await lataaTarkat(alue.b, maxZ, (z, k, kaikki, lisa) => { ed.value = k / kaikki; tx.textContent = 'Tarkka taso ' + (z - 13) + ' / ' + (maxZ - 13) + ': ' + k + ' / ' + kaikki + ' palaa (' + Math.round(k / kaikki * 100) + ' %)' + (lisa || ''); }, tila) : null;
+    if (watchId == null) naytto(false);
+    window.__norja = { r, rt };
+    if (!d.contains(tx)) { karttaUudelleen(); return; }
+    if (rt) { r.ok += rt.ok; r.ennestaan += rt.ennestaan; r.puuttuu += rt.puuttuu; }
+    tx.textContent = (tila.taynna ? 'Puhelimen tallennustila loppui kesken. ' : tila.virhe ? 'Karttapalvelu ei vastaa (useita virheitä peräkkäin), lataus pysäytettiin. Yritä myöhemmin uudelleen samasta napista – jo ladatut palat säilyvät. ' : tila.peru ? 'Keskeytetty – jatka painamalla nappia uudelleen. ' : 'Valmis. ') + 'Ladattu ' + r.ok + ', ennestään tallessa ' + r.ennestaan + (r.puuttuu ? ', ei saatavilla ' + r.puuttuu : '') + '.';
+    d.querySelector('#lPeru').textContent = 'Sulje'; d.querySelector('#lOk').disabled = false; d.querySelectorAll('input[name=tark]').forEach(x => x.disabled = false); tila.peru = false; karttaUudelleen(); paivitaKarttaTila();
+  };
+  d.showModal();
+}
 async function paivitaKarttaTila() {
   const el = $('#karttaTila'); if (!el) return;
   let teksti = 'Tallessa ' + await DB.maara('laatat') + ' karttapalaa';
   try { const s = await navigator.storage.estimate(); if (s && s.usage) teksti += ' · sovelluksen tiedot yhteensä noin ' + Math.max(1, Math.round(s.usage / 1048576)) + ' Mt'; } catch (x) { }
   await vaylatMuistiin();
-  teksti += vayla ? '. Väylätiedot tallessa: ' + ALUEET.filter(a => vayla.osat[a.id]).map(a => a.nimi + ' (haettu ' + pvm(vayla.osat[a.id].haettu) + ')').join(', ') : '. Väylätietoja ei ole vielä ladattu';
+  teksti += vayla ? '. Väylätiedot tallessa: ' + VAYLA_ALUEET.filter(a => vayla.osat[a.id]).map(a => a.nimi + ' (haettu ' + pvm(vayla.osat[a.id].haettu) + ')').join(', ') : '. Väylätietoja ei ole vielä ladattu';
   if ($('#karttaTila')) $('#karttaTila').textContent = teksti + '.';
 }
 
@@ -899,7 +1020,7 @@ const A = {
     d.innerHTML = '<form method="dialog"><h3>Kartta</h3><label>Karttapohja<select id="kPohja">' + POHJAT.map(k => '<option value="' + k + '"' + (k === pohja() ? ' selected' : '') + '>' + KARTAT[k].nimi + '</option>').join('') + '</select></label>' +
       '<label class="cb"><input type="checkbox" id="kNimet"' + (T.as.s57Nimet !== false ? ' checked' : '') + '>Merimerkkien nimet ja loistojen tunnukset (S-57)</label>' +
       '<div class="pieni">Ilman valintaa kartalta jäävät pois tekstit kuten "by Tero" ja "Fl(1)G 3s 2M". Talteen ladattu kartta on valintakohtainen: ilman verkkoa näkyy se versio, joka oli valittuna latauksen aikana.</div>' +
-      [["tuuli","Tuuli ja sää","Tuulinuolet, puuskat, lämpötila ja aallonkorkeus kartalla; ennuste 24 tuntia eteenpäin."],["ais","Muut alukset (AIS)","Lähialueen alukset kartalla. Päivittyy noin minuutin välein."],["satamat","Satamat ja polttoaineasemat","Venesatamat palvelutietoineen. Haetaan kerran ja jää talteen."],["luiskat","Veneenlaskuluiskat","Paikat, joissa veneen voi laskea trailerilta veteen."],["saunat","Yleiset saunat saarissa","Helsingin ja Espoon edustan saarten yleiset ja varattavat saunat."]].map(k => '<label class="cb"><input type="checkbox" data-lisa="' + k[0] + '"' + (T.as[k[0]] ? ' checked' : '') + '>' + k[1] + '</label>').join('') +
+      [["tuuli","Tuuli ja sää","Tuulinuolet, puuskat, lämpötila ja aallonkorkeus kartalla; ennuste 24 tuntia eteenpäin."],["tutka","Sadetutka (Ilmatieteen laitos)",""],["ais","Muut alukset (AIS)","Lähialueen alukset kartalla. Päivittyy noin minuutin välein."],["satamat","Satamat ja polttoaineasemat","Venesatamat palvelutietoineen. Haetaan kerran ja jää talteen."],["luiskat","Veneenlaskuluiskat","Paikat, joissa veneen voi laskea trailerilta veteen."],["saunat","Yleiset saunat saarissa","Helsingin ja Espoon edustan saarten yleiset ja varattavat saunat."]].map(k => '<label class="cb"><input type="checkbox" data-lisa="' + k[0] + '"' + (T.as[k[0]] ? ' checked' : '') + '>' + k[1] + '</label>').join('') +
       '<label class="cb"><input type="checkbox" id="kKall"' + (T.as.kallistus ? ' checked' : '') + '>Näytä kallistusmittari kartalla</label>' +
       '<label class="cb"><input type="checkbox" id="kSuuntaviiva"' + (T.as.suuntaviiva ? ' checked' : '') + '>Veneen suuntaviiva</label>' +
       '<div class="pieni" id="kSuuntaTila">' + (!paikkaTuore() ? 'Suuntaviiva näkyy, kun GPS on päällä ja vene liikkuu.' : kulku == null ? 'Kulkusuuntaa ei vielä tiedetä: viiva ilmestyy, kun vene on liikkunut noin 10 metriä.' : 'Kulkusuunta nyt ' + Math.round(kulku) + '° ' + ilmansuunta(kulku) + '.') + '</div>' +
@@ -932,6 +1053,13 @@ const A = {
     d.showModal();
   },
   lataaSuomenlahti() { lataaAlueKokoIkkuna(ALUEET[0]); },
+  lataaNorja(id) { const a = NORJA.find(x => x.id === id); if (a) lataaNorjaIkkuna(a); },
+  async lataaNorjaVaylat() {
+    if (!navigator.onLine) { ilmoita('Lataus vaatii verkkoyhteyden.'); return; }
+    ilmoita('Haetaan Norjan väyliä…');
+    try { await lataaVaylat(null, NORJA_VAYLA); ilmoita('Norjan väylät ladattu: ' + vayla.osat.norja.linjat + ' väyläosuutta.'); } catch (x) { ilmoita('Norjan väylien lataus ei onnistunut. Yritä hetken kuluttua uudelleen.'); }
+    if (nakyma === 'lisaa') piirra(); else karttaUudelleen();
+  },
   lataaKokoAlue(id) { const a = ALUEET.find(x => x.id === id); if (a) lataaAlueKokoIkkuna(a); },
   async tyhjennaKartat() { if (!confirm('Poistetaanko kaikki talteen ladatut kartat laitteelta?')) return; await DB.tyhjenna('laatat'); muisti.clear(); ilmoita('Tallennetut kartat poistettu.'); piirra(); },
   takaisin() { nakyma = 'loki'; piirra(); },
@@ -1027,24 +1155,25 @@ const A = {
 // ---------- reittisuunnittelu ----------
 // Väylät ja merimerkit: Väyläviraston avoin data (navigointilinjat ja turvalaitteet). Tiedot ladataan kerran laitteelle,
 // minkä jälkeen reititys toimii ilman verkkoa. Paikan nimihaku: omat paikat ja merimerkkien nimet laitteelta, muut OpenStreetMapin Nominatimista.
-let vayla = null, verkko = null, reitti = null, napautusCb = null;      // reitti = {mista, minne, r, merkit}
+let vayla = null, verkko = null, reitti = null, napautusCb = null, norjaLinjat = null;      // reitti = {mista, minne, r, merkit}
 const rs = { mista: { sijainti: true, nimi: 'Nykyinen sijainti' }, minne: null };
 const VAYLA_URL = (t, b) => 'https://avoinapi.vaylapilvi.fi/vaylatiedot/ows?service=WFS&version=2.0.0&request=GetFeature&outputFormat=application/json&srsName=EPSG:4326&bbox=' + [b.lo0, b.la0, b.lo1, b.la1].join(',') + ',EPSG:4326&typeNames=vesivaylatiedot:' + t;
 // Väylätiedot tallennetaan alueittain (kv: alue.avain) ja yhdistetään muistissa yhdeksi aineistoksi (vayla).
 async function vaylatMuistiin() {
   if (vayla) return vayla;
-  const osat = []; for (const a of ALUEET) try { const o = await DB.get('kv', a.avain); if (o && o.linjat) { o.alue = a.id; osat.push(o); } } catch (x) { }
+  const osat = []; norjaLinjat = null; for (const a of VAYLA_ALUEET) try { const o = await DB.get('kv', a.avain); if (o && o.linjat) { o.alue = a.id; osat.push(o); if (a.norja) norjaLinjat = linjaRajat(o.linjat, o.nimet); } } catch (x) { }
   if (!vayla && osat.length) { vayla = yhdistaVaylat(osat); verkko = null; }
   return vayla;
 }
 // Päivittää jo ladatut alueet; jos mitään ei ole ladattu, ladataan Suomenlahti.
 async function paivitaVaylat(edistys) {
-  await vaylatMuistiin(); const lista = ALUEET.filter(a => vayla && vayla.osat[a.id]);
+  await vaylatMuistiin(); const lista = VAYLA_ALUEET.filter(a => vayla && vayla.osat[a.id]);
   for (const a of lista.length ? lista : [ALUEET[0]]) await lataaVaylat(t => edistys && edistys(a.nimi + ': ' + t), a);
   return vayla;
 }
 async function lataaVaylat(edistys, alue) {
   alue = alue || ALUEET[0];
+  if (alue.norja) return lataaVaylatNorja(edistys, alue);
   const hae = async (t, teksti) => { if (edistys) edistys(teksti); const r = await fetch(VAYLA_URL(t, alue.b)); if (!r.ok) throw new Error('HTTP ' + r.status); return (await r.json()).features || []; };
   const nimet = [], ni = new Map(), linjat = [], nahty = new Set(), merkit = [], nahtyM = new Set();
   for (const t of ['navigointilinjat_uusi', 'navigointilinjat_muut_vaylanpitajat']) for (const f of await hae(t, 'Haetaan väyliä…')) {
@@ -1146,7 +1275,7 @@ async function matkaReittina(id) {
 // Vaiheet: 'alku' (lähtöpiste kartalta tai nimellä) -> 'loppu' (määränpää) -> 'vali' (välipisteiden lisäys, siirto ja poisto).
 // Valmis reitti on pisteviiva kuten lokista avattu jälki (reitti.jalki), lisäksi reitti.oma = true, jolloin sitä voi muokata uudelleen.
 let omaR = null;      // { p: [{lat, lon, nimi}], vaihe, valittu: pisteen indeksi | null, historia: [kumottavat tilat], id, nimi }
-const satamatNimetyt = () => ((lisa.satamat || (typeof SATAMAT_PAKETTI !== 'undefined' ? SATAMAT_PAKETTI : null) || { lista: [] }).lista).filter(x => x.n);
+const satamatNimetyt = () => ((lisa.satamat || satamaPaketti() || { lista: [] }).lista).filter(x => x.n);
 // Pisteen nimi: oma paikka, alle 400 m päässä oleva satama tai koordinaatit.
 function pisteNimi(la, lo) {
   const oma = paikkaNimi([la, lo]); if (oma) return oma;
@@ -1243,7 +1372,7 @@ function valitsePaikka(otsikko, cb, o) {
   let lista = [];
   const oletus = () => { lista = []; return (o.sijainti ? rivi({ sijainti: true, nimi: 'Nykyinen sijainti' }, paikkaNyt() ? koord(...paikkaNyt()) : 'sijaintia ei vielä ole') : '') + (T.koti && !o.eiKotia ? rivi(T.koti, 'Kotisatama') : '') + T.paikat.filter(p => !T.koti || p.nimi !== T.koti.nimi).map(p => rivi({ nimi: p.nimi, lat: p.lat, lon: p.lon }, 'Oma paikka')).join('') + T.kalapaikat.map(k => rivi({ nimi: k.nimi, lat: k.lat, lon: k.lon }, 'Kalapaikka' + (k.lajit ? ': ' + k.lajit : ''))).join('') + lahiSatamat(); };
   // Satamat sovelluksen mukana tulevasta tai laitteelle päivitetystä satamaluettelosta: löytyvät nimellä myös ilman verkkoa.
-  const satamaLista = () => ((lisa.satamat || (typeof SATAMAT_PAKETTI !== 'undefined' ? SATAMAT_PAKETTI : null) || { lista: [] }).lista).filter(s => s.n);
+  const satamaLista = () => ((lisa.satamat || satamaPaketti() || { lista: [] }).lista).filter(s => s.n);
   const satamaLaji = s => (s.l === 'satama' ? 'Satama' : s.l === 'luiska' ? 'Veneenlaskuluiska' : s.l === 'polttoaine' ? 'Polttoaineasema' : 'Veneilyn palvelu') + (s.t && s.t['addr:city'] ? ', ' + s.t['addr:city'] : '');
   // viisi lähintä satamaa nykyisestä sijainnista
   const lahiSatamat = () => { const s = paikkaNyt(); if (!s) return ''; return satamaLista().filter(x => x.l === 'satama').map(x => [etaisyys(s[0], s[1], x.la, x.lo), x]).sort((a, b) => a[0] - b[0]).slice(0, 5).map(([d, x]) => rivi({ nimi: x.n, lat: x.la, lon: x.lo }, satamaLaji(x) + ' · ' + n(d / MPK) + ' mpk täältä')).join(''); };
@@ -1267,7 +1396,7 @@ function valitsePaikka(otsikko, cb, o) {
     { const k = tama || [lv.lat, lv.lon], sa = /saun/.test(pieni) ? saunaLista() : saunaLista().filter(x => (x.n + ' ' + x.saari).toLowerCase().includes(pieni));
       h += sa.map(x => [etaisyys(k[0], k[1], x.la, x.lo), x]).sort((a, b) => a[0] - b[0]).slice(0, 8).map(([et, x]) => rivi({ nimi: x.n, lat: x.la, lon: x.lo }, 'Yleinen sauna, ' + x.saari + ' · ' + n(et / MPK) + ' mpk ' + (tama ? 'täältä' : 'kartan keskeltä'))).join(''); }
     // hakusana "luiska" tai "veneenlasku": lähimmät veneenlaskuluiskat, myös nimettömät
-    if (/luisk|veneenlasku|ramp/.test(pieni)) { const k = tama || [lv.lat, lv.lon], kaikki = (lisa.satamat || (typeof SATAMAT_PAKETTI !== 'undefined' ? SATAMAT_PAKETTI : null) || { lista: [] }).lista;
+    if (/luisk|veneenlasku|ramp/.test(pieni)) { const k = tama || [lv.lat, lv.lon], kaikki = (lisa.satamat || satamaPaketti() || { lista: [] }).lista;
       h += kaikki.filter(x => x.l === 'luiska' && !osuvat.includes(x)).map(x => [etaisyys(k[0], k[1], x.la, x.lo), x]).sort((a, b) => a[0] - b[0]).slice(0, 8).map(([et, x]) => rivi({ nimi: x.n || 'Veneluiska ' + (x.t && x.t['addr:city'] || koord(x.la, x.lo)), lat: x.la, lon: x.lo }, satamaLaji(x) + ' · ' + n(et / MPK) + ' mpk ' + (tama ? 'täältä' : 'kartan keskeltä'))).join(''); }
     await vaylatMuistiin();
     if (vayla) h += vayla.merkit.filter(m => m[3] && m[3].toLowerCase().includes(pieni)).sort((a, b) => a[3].length - b[3].length).slice(0, 6).map(m => rivi({ nimi: m[3], lat: m[1], lon: m[0] }, 'Merimerkki: ' + (MERKKILAJIT[m[2]] || m[4]))).join('');
@@ -1301,18 +1430,18 @@ function reittiIkkuna() {
         '<button type="button" class="nappi" id="rOma">Piirrä oma reitti kartalle</button>' +
         (T.reitit.length ? '<h4>Tallennetut reitit</h4><div class="plista">' + T.reitit.map(x => '<div class="rivi" data-r="' + x.id + '"><div class="v"><b>' + e(x.nimi) + '</b><span class="pieni">' + e(x.mista.nimi) + ' → ' + e(x.minne.nimi) + (x.matka ? ' · ' + n(x.matka / MPK) + ' mpk' : '') + (x.pisteet ? (x.oma ? ' · oma reitti' : ' · ajettu jälki') : '') + '</span></div><button type="button" class="nappi pien" data-rm="' + x.id + '" aria-label="Nimeä tai poista">⋯</button></div>').join('') + '</div>'
           : '<div class="pieni">Tallennettuja reittejä ei vielä ole. Suunniteltu reitti tallennetaan kartan reittipalkin kirjanmerkkinapista.</div>') +
-        '<div class="pieni">Reitti kulkee Väyläviraston väyliä pitkin' + (T.vene.syvays ? ' ja käyttää vain väyliä, joiden syväys on vähintään ' + n(T.vene.syvays) + ' m' : '') + '. Väylätiedot: ' + ALUEET.filter(a => vayla.osat[a.id]).map(a => a.nimi).join(' ja ') + ', haettu ' + pvm(vayla.haettu) + ' (' + vayla.linjat.length + ' väyläosuutta, ' + vayla.merkit.length + ' merimerkkiä' + (vayla.rajoitukset ? ', ' + vayla.rajoitukset.length + ' rajoitusaluetta' : '') + '). <b>Reitti on suunnittelun apu – tarkista se merikartalta, älä navigoi sen varassa.</b></div>' +
+        '<div class="pieni">Reitti kulkee Väyläviraston väyliä pitkin' + (T.vene.syvays ? ' ja käyttää vain väyliä, joiden syväys on vähintään ' + n(T.vene.syvays) + ' m' : '') + '. Väylätiedot: ' + VAYLA_ALUEET.filter(a => vayla.osat[a.id]).map(a => a.nimi).join(' ja ') + ', haettu ' + pvm(vayla.haettu) + ' (' + vayla.linjat.length + ' väyläosuutta, ' + vayla.merkit.length + ' merimerkkiä' + (vayla.rajoitukset ? ', ' + vayla.rajoitukset.length + ' rajoitusaluetta' : '') + '). <b>Reitti on suunnittelun apu – tarkista se merikartalta, älä navigoi sen varassa.</b></div>' +
         '<div class="napit"><button type="button" class="nappi" id="rSulje">Sulje</button><button type="button" class="nappi paa" id="rLaske">Suunnittele reitti</button></div>' +
         '<button type="button" class="nappi pien" id="rPaivita">Päivitä väylätiedot</button>'
         : '<div class="pieni">Reittisuunnittelu tarvitsee alueen väylät ja merimerkit sekä nopeusrajoitusalueet (Väyläviraston avoin data, 5–15 Mt alueelta). Ne ladataan kerran laitteelle, ja sen jälkeen reitit lasketaan ilman verkkoa. Valitse alue; toisen alueen voi ladata myöhemmin kartan tasonapista.</div><div class="pieni" id="rTila"></div>' +
-        ALUEET.map(a => '<button type="button" class="nappi paa rLataa" data-alue="' + a.id + '">Lataa väylätiedot: ' + a.nimi + '</button>').join('') +
+        VAYLA_ALUEET.map(a => '<button type="button" class="nappi paa rLataa" data-alue="' + a.id + '">Lataa väylätiedot: ' + a.nimi + '</button>').join('') +
         '<div class="pieni">Oman reitin voit piirtää ilman väylätietojakin: napautat reitin pisteet itse kartalle.</div><button type="button" class="nappi" id="rOma">Piirrä oma reitti kartalle</button>' +
         '<div class="napit"><button type="button" class="nappi" id="rSulje">Sulje</button></div>') + '</form>';
     d.querySelector('#rSulje').onclick = () => d.close();
     const lataa = async nappi => {
       if (!navigator.onLine) { ilmoita('Lataus vaatii verkkoyhteyden.'); return; }
       nappi.disabled = true; const tila = d.querySelector('#rTila');
-      try { const paivita = t => { if (tila) tila.textContent = t; else nappi.textContent = t; }, a = ALUEET.find(x => x.id === nappi.dataset.alue); if (a) await lataaVaylat(paivita, a); else await paivitaVaylat(paivita); ilmoita('Väylätiedot ladattu.'); }
+      try { const paivita = t => { if (tila) tila.textContent = t; else nappi.textContent = t; }, a = VAYLA_ALUEET.find(x => x.id === nappi.dataset.alue); if (a) await lataaVaylat(paivita, a); else await paivitaVaylat(paivita); ilmoita('Väylätiedot ladattu.'); }
       catch (x) { ilmoita('Väylätietojen lataus ei onnistunut. Yritä hetken kuluttua uudelleen.'); }
       piirraIkkuna();
     };
@@ -1458,13 +1587,16 @@ async function aisHae() {
 }
 // Satamat: ensin laitteelle tallennetut tiedot, muuten sovelluksen mukana tuleva paketti (tiedot/satamat.js).
 // pakko = haetaan uudet tiedot verkosta (OpenStreetMapin Overpass-palvelu on hidas ja hylkää joskus pyyntöjä, siksi vain pyydettäessä).
+// Norjan satamat tulevat omana pakettinaan (tiedot/satamat-norja.js) ja liitetään Suomen tietojen perään. Verkkopäivitys koskee vain Suomen alueita.
+const norjaLiita = o => typeof SATAMAT_NORJA === 'undefined' || !o ? o : { haettu: o.haettu, paketti: o.paketti, lista: o.lista.concat(SATAMAT_NORJA.lista) };
+const satamaPaketti = () => typeof SATAMAT_PAKETTI === 'undefined' ? null : satamaPaketti.o || (satamaPaketti.o = norjaLiita(SATAMAT_PAKETTI));
 async function satamatHae(pakko) {
   if (lisa.satamaHaku) return;
   if (!lisa.satamat) {
     try { lisa.satamat = await DB.get('kv', 'satamat') || null; } catch (x) { }
     // sovelluksen mukana tullut paketti voittaa, jos se on laitteelle aiemmin haettuja tietoja uudempi (esim. uusia alueita lisätty)
     if (lisa.satamat && typeof SATAMAT_PAKETTI !== 'undefined' && SATAMAT_PAKETTI.haettu > lisa.satamat.haettu) lisa.satamat = null;
-    if (!lisa.satamat && typeof SATAMAT_PAKETTI !== 'undefined') lisa.satamat = SATAMAT_PAKETTI;
+    lisa.satamat = lisa.satamat ? norjaLiita(lisa.satamat) : satamaPaketti();
     laattaSaapui();
   }
   if (!pakko) return;
@@ -1477,27 +1609,105 @@ async function satamatHae(pakko) {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const lista = satamatMuunna((await r.json()).elements);
     if (lista.length < 20) throw new Error('vajaa vastaus');
-    lisa.satamat = { haettu: Date.now(), lista }; await DB.put('kv', lisa.satamat, 'satamat');
+    const omat = { haettu: Date.now(), lista }; await DB.put('kv', omat, 'satamat'); lisa.satamat = norjaLiita(omat);
     ilmoita('Satamatiedot päivitetty: ' + lista.length + ' kohdetta.');
   } catch (x) { lisa.satamaVirhe = String(x && x.message || x); ilmoita('Päivitys ei onnistunut juuri nyt. Käytössä ovat aiemmat tiedot.'); }
   finally { lisa.satamaHaku = false; }
   laattaSaapui(); if (nakyma === 'lisaa') piirra();
 }
 // Kutsutaan viiveellä aina kun karttaa on piirretty: hakee puuttuvat tai vanhentuneet tiedot.
-function lisatAjasta() { if (!(T.as.tuuli || T.as.ais || T.as.satamat || T.as.luiskat)) return; clearTimeout(lisa.ajastin); lisa.ajastin = setTimeout(lisatPaivita, 1200); }
+// Norjan merikartalla satamat ja väylät ovat päällä automaattisesti: satamat näytetään asetuksesta riippumatta ja väylät haetaan itsestään (noin 1 Mt).
+const norjaNyt = () => !!kLive && nayttoKartta(lv).id === 'norja';
+const norjaAuto = { haku: false, virhe: 0 };
+async function norjaVaylatAuto() {
+  if (norjaAuto.haku || !navigator.onLine || Date.now() - norjaAuto.virhe < 120000) return;
+  norjaAuto.haku = true;
+  try { await vaylatMuistiin(); if (!(vayla && vayla.osat.norja)) { await lataaVaylat(null, NORJA_VAYLA); laattaSaapui(); } }
+  catch (x) { norjaAuto.virhe = Date.now(); } finally { norjaAuto.haku = false; }
+}
+function lisatAjasta() { if (!(T.as.tuuli || T.as.tutka || T.as.ais || T.as.satamat || T.as.luiskat || norjaNyt())) return; clearTimeout(lisa.ajastin); lisa.ajastin = setTimeout(lisatPaivita, 1200); }
 function lisatPaivita() {
   if (nakyma !== 'kartta' || !kLive || !kLive.cv.isConnected) return;
-  if ((T.as.satamat || T.as.luiskat) && !lisa.satamat) satamatHae();
+  const norja = norjaNyt();
+  if ((T.as.satamat || T.as.luiskat || norja) && !lisa.satamat) satamatHae();
+  if (norja && !norjaLinjat) norjaVaylatAuto();
   if (!navigator.onLine) return;
   if (T.as.tuuli && (!lisa.tuuli || Date.now() - lisa.tuuli.aika > 30 * 60000 || siirtynyt(lisa.tuuli.nakyma)) && !(lisa.tuuliVirhe && Date.now() - lisa.tuuliVirhe < 30000)) tuuliHae();
+  if (T.as.tutka && Date.now() - tutka.aika > 150000 && !(tutka.virhe && Date.now() - tutka.virhe < 30000)) tutkaHae();
   if (T.as.ais && (Date.now() - lisa.aisAika > 60000 || (lisa.ais && siirtynyt(lisa.aisNakyma) && Date.now() - lisa.aisAika > 5000))) aisHae();
   else if (T.as.ais && lisa.ais && siirtynyt(lisa.aisNakyma)) { clearTimeout(lisa.ajastin); lisa.ajastin = setTimeout(lisatPaivita, 5200); }
+}
+// ---------- sadetutka: Ilmatieteen laitoksen avoin karttapalvelu (WMS, CC BY 4.0) ----------
+// Koko Suomen tutkakuva haetaan yhtenä läpinäkyvänä kuvana (sama projektio kuin kartassa), joten karttaa voi siirtää ja zoomata ilman uusia hakuja.
+// Kuvia tulee 5 minuutin välein; uusimman kuvan aika luetaan palvelun kuvauksesta, koska tulevaa aikaa pyydettäessä palvelu vastaa virheellä.
+const TUTKA = { url: 'https://openwms.fmi.fi/geoserver/', taso: 'Radar:suomi_dbz_eureffin', b: { lo0: 17, lo1: 33.5, la0: 57.5, la1: 70.5 }, w: 1024, kuvia: 13, vali: 300000 };
+const tutka = { ajat: [], kuvat: new Map(), i: 0, haku: 0, aika: 0, virhe: 0, anim: 0, tauko: 0 };
+const mercM = (lon, lat) => [6378137 * lon * RAD, 6378137 * Math.asinh(Math.tan(lat * RAD))];
+function tutkaUrl(t) {
+  const B = TUTKA.b, a = mercM(B.lo0, B.la0), b = mercM(B.lo1, B.la1), h = Math.round(TUTKA.w * (b[1] - a[1]) / (b[0] - a[0]));
+  return TUTKA.url + 'wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=' + TUTKA.taso + '&STYLES=&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=true&BBOX=' + [a[0], a[1], b[0], b[1]].map(Math.round).join(',') + '&WIDTH=' + TUTKA.w + '&HEIGHT=' + h + '&TIME=' + new Date(t).toISOString();
+}
+// Yksi tutkakuva muistiin. Palauttaa kuvan tai null, jos kuvaa ei saatu.
+function tutkaKuva(t) {
+  const v = tutka.kuvat.get(t); if (v) return Promise.resolve(v);
+  return new Promise(ok => { const im = new Image(); im.crossOrigin = 'anonymous'; const a = setTimeout(() => ok(null), 20000);
+    im.onload = () => { clearTimeout(a); if (tutka.ajat.includes(t)) tutka.kuvat.set(t, im); ok(im); }; im.onerror = () => { clearTimeout(a); ok(null); }; im.src = tutkaUrl(t); });
+}
+async function tutkaHae() {
+  if (tutka.haku) return; tutka.haku = 1;
+  try {
+    const r = await fetch(TUTKA.url + 'Radar/suomi_dbz_eureffin/wms?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities', { cache: 'no-store' }); if (!r.ok) throw new Error(r.status);
+    const loppu = tutkaLoppu(await r.text()); if (!loppu) throw new Error('aika puuttuu');
+    const vanha = tutka.ajat[tutka.ajat.length - 1];
+    tutka.ajat = Array.from({ length: TUTKA.kuvia }, (_, k) => loppu - (TUTKA.kuvia - 1 - k) * TUTKA.vali);
+    for (const t of [...tutka.kuvat.keys()]) if (!tutka.ajat.includes(t)) tutka.kuvat.delete(t);
+    if (!await tutkaKuva(loppu)) throw new Error('kuva puuttuu');
+    tutka.aika = Date.now(); tutka.virhe = 0;
+    if (tutka.anim && vanha !== loppu) { tutka.i = Math.max(0, tutka.i - 1); tutka.ajat.forEach(tutkaKuva); }
+  } catch (x) { tutka.virhe = Date.now(); tutka.virheTeksti = String(x && x.message || x); } finally { tutka.haku = 0; }
+  laattaSaapui();
+}
+// Animaatio: viimeisen tunnin kuvat peräkkäin, uusimman kohdalla pieni tauko.
+function tutkaKaynnista() {
+  if (!tutka.ajat.length) { ilmoita(navigator.onLine ? 'Tutkakuvaa haetaan vielä.' : 'Sadetutka vaatii verkkoyhteyden.'); return; }
+  tutka.ajat.forEach(tutkaKuva); tutka.i = 0; tutka.tauko = 0;
+  tutka.anim = setInterval(() => {
+    if (nakyma !== 'kartta' || !kLive || !kLive.cv.isConnected || !T.as.tutka) { tutkaSeis(); return; }
+    const N = tutka.ajat.length;
+    if (tutka.i === N - 1 && tutka.tauko++ < 3) return;
+    tutka.tauko = 0;
+    for (let k = 1; k <= N; k++) { const j = (tutka.i + k) % N; if (tutka.kuvat.has(tutka.ajat[j])) { tutka.i = j; break; } }
+    kLive.piirra();
+  }, 450);
+  if (kLive) kLive.piirra();
+}
+function tutkaSeis() { clearInterval(tutka.anim); tutka.anim = 0; if (kLive && kLive.cv.isConnected) kLive.piirra(); }
+setInterval(() => { if (T.as.tutka && !document.hidden) lisatPaivita(); }, 60000);
+// Piirtää tutkakuvan kartan päälle (vain näkyvä osa kuvasta) ja päivittää kartan Sadetutka-napin.
+function piirraTutka(c, X, Y, W, H) {
+  const nappi = $('#kTutka'), lahde = $('#kTutkaL'), paalla = !!T.as.tutka; let t = 0;
+  if (paalla) {
+    t = tutka.ajat[tutka.anim ? tutka.i : tutka.ajat.length - 1] || 0; const im = tutka.kuvat.get(t);
+    if (im) {
+      const r = tutkaRajaus(X(TUTKA.b.lo0), Y(TUTKA.b.la1), X(TUTKA.b.lo1), Y(TUTKA.b.la0), im.width, im.height, W, H);
+      if (r) { c.save(); c.globalAlpha = .65; c.drawImage(im, r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7]); c.restore(); }
+    } else t = 0;
+  }
+  if (kLive && c.canvas === kLive.cv) c.canvas.dataset.tutka = t || '';
+  if (lahde) { lahde.hidden = !paalla; lahde.textContent = paalla ? ' Sadetutka: Ilmatieteen laitos, CC BY 4.0.' : ''; }
+  if (!nappi) return;
+  nappi.hidden = !paalla; if (!paalla) return;
+  nappi.classList.toggle('on', !!tutka.anim);
+  nappi.querySelector('b').textContent = (tutka.anim ? '■ ' : '▶ ') + 'Sadetutka';
+  nappi.querySelector('span').textContent = t ? 'klo ' + klo(t) + (!tutka.anim && Date.now() - t > 25 * 60000 ? ' (vanha kuva)' : '') : !navigator.onLine ? 'ei verkkoa' : tutka.virhe ? 'ei saatavilla juuri nyt' : 'haetaan…';
 }
 const tuuliVari = v => v < 4 ? '#1f8a4c' : v < 8 ? '#0b7a8f' : v < 11 ? '#c77700' : v < 14 ? '#e8590c' : '#c0392b';
 const aisTyyppi = k => k == null ? '' : k === 30 ? 'Kalastusalus' : k === 36 ? 'Purjealus' : k === 37 ? 'Huvialus' : k === 50 ? 'Luotsialus' : k === 51 ? 'Meripelastusalus' : k === 52 ? 'Hinaaja' : k === 55 ? 'Viranomaisalus' : k >= 40 && k < 50 ? 'Pika-alus' : k >= 60 && k < 70 ? 'Matkustaja-alus' : k >= 70 && k < 80 ? 'Rahtialus' : k >= 80 && k < 90 ? 'Säiliöalus' : 'Muu alus';
 // Piirtää lisätiedot kartalle ja kirjaa napautettavat kohteet (lisa.osumat).
 function piirraLisat(c, X, Y, W, H, z) {
   lisa.osumat = [];
+  piirraTutka(c, X, Y, W, H);
+  piirraNorjaVaylat(c, X, Y, W, H, z);
   piirraSyvyys(c, X, Y, W, H, z);
   // Muokattava oma reitti: viiva ja pisteet (A = lähtö, B = määränpää, numerot = välipisteet, keltainen = valittu).
   if (omaR && omaR.p.length) {
@@ -1512,8 +1722,9 @@ function piirraLisat(c, X, Y, W, H, z) {
   const sisalla = (x, y) => x > -30 && y > -30 && x < W + 30 && y < H + 30;
   const teksti = (s, x, y, koko, vari) => { c.font = '600 ' + koko + 'px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top'; c.lineWidth = 3.5; c.strokeStyle = 'rgba(255,255,255,.92)'; c.strokeText(s, x, y); c.fillStyle = vari; c.fillText(s, x, y); };
   // Satamat ja palvelut omalla kytkimellään, veneenlaskuluiskat omallaan (violetti merkki, näkyvät tasolta 10).
-  if ((T.as.satamat || T.as.luiskat) && lisa.satamat && z >= 8.5) for (const s of lisa.satamat.lista) {
-    if (s.l === 'luiska' ? !T.as.luiskat || z < 10 : !T.as.satamat || (s.l !== 'satama' && z < 11)) continue;
+  const satamatPaalla = T.as.satamat || norjaNyt();      // Norjan merikartalla satamat näkyvät aina
+  if ((satamatPaalla || T.as.luiskat) && lisa.satamat && z >= 8.5) for (const s of lisa.satamat.lista) {
+    if (s.l === 'luiska' ? !T.as.luiskat || z < 10 : !satamatPaalla || (s.l !== 'satama' && z < 11)) continue;
     const x = X(s.lo), y = Y(s.la); if (!sisalla(x, y)) continue; pysty(c, x, y);
     const r = s.l === 'satama' ? 9 : s.l === 'luiska' ? 8 : 7;
     c.beginPath(); c.arc(x, y, r, 0, 7); c.fillStyle = s.l === 'satama' ? '#0f2a43' : s.l === 'polttoaine' ? '#e8590c' : s.l === 'luiska' ? '#6741d9' : '#6b7780'; c.fill(); c.lineWidth = 2; c.strokeStyle = '#fff'; c.stroke();
@@ -1646,7 +1857,7 @@ function karttaNapautus(x, y) {
   let paras = null, pd = Infinity; for (const o of lisa.osumat) { const d = Math.hypot(o.x - x, o.y - y); if (d <= o.r && d < pd) { pd = d; paras = o; } }
   if (paras) (paras.laji === 'ais' ? aisIkkuna : paras.laji === 'kala' ? kalapaikkaIkkuna : paras.laji === 'sauna' ? saunaIkkuna : satamaIkkuna)(paras.d);
 }
-Object.assign(A, { aisNyt() { if (!navigator.onLine) { ilmoita('Ei verkkoyhteyttä.'); return; } lisa.aisAika = 0; aisHae(); }, satamatPaivita() { satamatHae(true); }, tuuliAika() { lisa.tunti = (lisa.tunti + 1) % TUNNIT.length; if (kLive) kLive.piirra(); } });
+Object.assign(A, { aisNyt() { if (!navigator.onLine) { ilmoita('Ei verkkoyhteyttä.'); return; } lisa.aisAika = 0; aisHae(); }, satamatPaivita() { satamatHae(true); }, tuuliAika() { lisa.tunti = (lisa.tunti + 1) % TUNNIT.length; if (kLive) kLive.piirra(); }, tutkaAnim() { if (tutka.anim) tutkaSeis(); else tutkaKaynnista(); } });
 setInterval(() => { if (typeof T !== 'undefined' && T && nakyma === 'kartta') lisatPaivita(); }, 60000);
 
 // ---------- omat kalapaikat ----------
@@ -1963,7 +2174,7 @@ async function alku() {
     const el = ev.target, c = el.dataset.c;
     if (c === 'vuosi') { vuosi = el.value; piirra(); }
     else if (c === 'kartta') { T.as.kartta = el.value; await talletaT(); piirra(); }
-    else if (c === 'tuuli' || c === 'ais' || c === 'satamat' || c === 'luiskat' || c === 'saunat') { T.as[c] = el.checked; await talletaT(); piirra(); }
+    else if (c === 'tuuli' || c === 'tutka' || c === 'ais' || c === 'satamat' || c === 'luiskat' || c === 'saunat') { T.as[c] = el.checked; await talletaT(); piirra(); }
     else if (c === 'rajoitus') { T.as.rajoitus = el.checked; if (!el.checked) { raj.nyt = []; raj.yli = false; } await talletaT(); piirra(); }
     else if (c === 'kallistus') { T.as.kallistus = el.checked && await kallPaalle(); if (!T.as.kallistus) kallPois(); await talletaT(); piirra(); }
     else if (c === 'yksikko') { T.as.yksikko = el.value; await talletaT(); piirra(); }
