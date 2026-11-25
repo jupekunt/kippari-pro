@@ -192,5 +192,14 @@ input[type=checkbox],input[type=radio]{flex:none;min-width:22px;min-height:22px}
 /* 3D-näkymän vene: kolmiulotteisen näköinen kuva kallistetun kartan päällä, paikka ja koko asetetaan koodista */
 .kvene3d{position:absolute;left:0;top:0;width:45px;height:56px;pointer-events:none;transform-origin:50% 62%;filter:drop-shadow(0 2px 2px rgba(0,0,0,.28))}
 .kvene3d[hidden]{display:none}
-.kvene3d svg{display:block;width:100%;height:100%}
+.kmerkit3d{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+.kmerkit3d[hidden]{display:none}
+.kvene3d svg{display:block;width:100%;height:100%;overflow:visible;transform-origin:50% 75%;animation:keinu 3.2s ease-in-out infinite}
+.kvene3d.himmea svg{animation:none}
+.kvene3d .vana{display:none;transform-origin:40px 86px;transform:scaleY(var(--vp,1))}
+.kvene3d.vauhti .vana{display:inline}
+.kvene3d .vana .vv{stroke-dasharray:8 7;animation:vana .8s linear infinite}
+@keyframes keinu{0%,100%{transform:rotate(-1.6deg) translateY(0)}50%{transform:rotate(1.6deg) translateY(.8px)}}
+@keyframes vana{to{stroke-dashoffset:-15}}
+@media (prefers-reduced-motion:reduce){.kvene3d svg,.kvene3d .vana .vv{animation:none}}
 .kvene3d.himmea{filter:grayscale(1) opacity(.72)}

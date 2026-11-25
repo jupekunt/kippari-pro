@@ -231,7 +231,7 @@ function nMatka() {
 }
 // Päänäkymä: koko ruudun kartta. Päällä nopeus ja kulkusuunta, kartan napit ja tallennuksen tila.
 function nKartta() {
-  return '<div class="kokok' + (reitti || omaR ? ' onreitti' : '') + '"><canvas class="kartta taysi" id="lKartta"></canvas><div class="kvene3d" id="kVene3d" hidden>' + VENE3D + '</div>' +
+  return '<div class="kokok' + (reitti || omaR ? ' onreitti' : '') + '"><canvas class="kartta taysi" id="lKartta"></canvas><canvas class="kmerkit3d" id="kMerkit3d" hidden></canvas><div class="kvene3d" id="kVene3d" hidden>' + VENE3D + '</div><canvas class="kmerkit3d" id="kSaa3d" hidden></canvas>' +
     '<div class="kyla"><div class="kmittari"><div class="knop"><b id="kNopeus">–</b><span>' + NY() + '</span></div><div class="ksuu"><b id="kSuunta">–</b><span id="kIlmans"></span></div><div class="kraj" id="kRaja" data-a="rajoitusTiedot" hidden><i id="kRajaLuku"></i><span id="kRajaS"></span></div><div class="kkal" id="kKalRivi" hidden><em class="kvene"><i id="kKalViiva"><svg viewBox="0 0 40 34" aria-hidden="true"><path d="M20 2v7" stroke="#12222f" stroke-width="1.6" stroke-linecap="round"/><path d="M12.5 17l2-8h11l2 8z" fill="#cfe6ec" stroke="#0b7a8f" stroke-width="1.6" stroke-linejoin="round"/><path d="M4 17h32l-3.5 8.5q-12.5 5-25 0z" fill="#0b7a8f" stroke="#075565" stroke-width="1.2" stroke-linejoin="round"/><rect x="18" y="24" width="4" height="7" rx="1.2" fill="#12222f"/></svg></i></em><b id="kKal">–</b><span id="kKalS"></span></div></div><button class="ktuuli" id="kTuuli" data-a="tuuliAika" hidden title="Vaihda ennusteen ajankohtaa"><b></b><span></span></button></div>' +
     '<div class="knapit"><button data-a="keskita" id="lKarttaK" aria-label="Keskitä veneeseen" title="Keskitä veneeseen">' + KESKITA + '</button>' +
     '<button data-a="kompassi" id="kKompassi" aria-label="Käännä kartta kulkusuuntaan" title="Käännä kartta kulkusuuntaan"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9.6"/><path d="M12 3.6l3.1 8.4H8.9z" fill="#e01b24" stroke="none"/><path d="M12 20.4L8.9 12h6.2z" fill="#9aa7b1" stroke="none"/></svg></button>' +
@@ -653,6 +653,7 @@ class Kartta {
     if (pts.length > 1) for (const [w, vari] of [[7, '#fff'], [4, '#e01b24']]) { c.lineWidth = w; c.strokeStyle = vari; c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(X(p[2]), Y(p[1])) : c.moveTo(X(p[2]), Y(p[1]))); c.stroke(); }
     if (pts.length) piste(pts[0], '#1f8a4c');
     if (this.lisat) { this.lisat(c, X, Y, W, H, v.z); lisatAjasta(); }
+    if (this === kLive) { merkit3d(this, X, Y, W, H, v.z); saa3dPaivita(); }
     const b = this.vene;
     // 3D-näkymässä vene on kartan päällä oleva kolmiulotteisen näköinen kuva (vene3d), ei kartan pintaan piirretty litteä merkki
     const kuvana = this === kLive && vene3d(this, b, b ? X(b.lon) : 0, b ? Y(b.lat) : 0, W, H);
@@ -667,6 +668,13 @@ class Kartta {
     if (kuvana) return;
     // Oma vene ylhäältä päin, keula kulkusuuntaan.
     c.save(); c.translate(X(b.lon), Y(b.lat)); c.rotate((b.suunta || 0) * RAD);
+    // Vanavesi: nopeuden mukaan pitenevä vaahtovana perän takana (vain liikkeessä)
+    if (b.nopeus > 1 && !b.himmea) {
+      const L = rajaa(b.nopeus * 1.944 * 5, 16, 75), g = c.createLinearGradient(0, 18, 0, 18 + L); g.addColorStop(0, 'rgba(255,255,255,.9)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      c.lineCap = 'round'; c.strokeStyle = g;
+      c.lineWidth = 7; c.globalAlpha = .45; c.beginPath(); c.moveTo(0, 20); c.lineTo(0, 18 + L * .85); c.stroke(); c.globalAlpha = 1;
+      c.lineWidth = 2.6; c.setLineDash([6, 5]); c.beginPath(); for (const s of [-1, 1]) { c.moveTo(s * 8, 17); c.quadraticCurveTo(s * (9 + L * .1), 18 + L * .5, s * (8 + L * .34), 18 + L); } c.stroke(); c.setLineDash([]);
+    }
     // Sama vene kuin 3D-näkymän kuvassa (VENE3D), suoraan ylhäältä: valkoinen kansi, tumma reunus, tuulilasi, hytin katto, punainen perälista ja perämoottori.
     const tumma = b.himmea ? '#7d8a94' : '#0f2a43', runko = () => { c.beginPath(); c.moveTo(0, -22); c.bezierCurveTo(11, -11, 12.5, 6, 10, 18); c.lineTo(-10, 18); c.bezierCurveTo(-12.5, 6, -11, -11, 0, -22); c.closePath(); };
     c.lineJoin = 'round';
@@ -689,7 +697,11 @@ const kiertoNyt = () => T.as.keulaYlos && kulku != null ? -kulku * RAD : 0;
 // 3D-näkymän vene: takaa ja yläviistosta kuvattu vene, joka sijoitetaan veneen kohtaan näytöllä ja pysyy pystyssä.
 // Kohta lasketaan samalla projektiolla kuin kallistettu kartta: x, y = veneen paikka piirtoalueella, vW, vH = piirtoalueen koko.
 // Palauttaa true, kun kuva hoitaa veneen näyttämisen (litteää merkkiä ei silloin piirretä).
-const VENE3D = '<svg viewBox="0 0 80 100" aria-hidden="true"><ellipse cx="42" cy="72" rx="25" ry="27" fill="rgba(0,0,0,.2)"/>' +
+const VENE3D = '<svg viewBox="0 0 80 100" aria-hidden="true">' +
+  // vanavesi: näkyy vain liikkeessä (luokka vauhti), pituus nopeuden mukaan (--vp), vaahto valuu taaksepäin
+  '<defs><linearGradient id="vanaG" gradientUnits="userSpaceOnUse" x1="0" y1="84" x2="0" y2="172"><stop offset="0" stop-color="#fff" stop-opacity=".95"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>' +
+  '<g class="vana" fill="none" stroke="url(#vanaG)" stroke-linecap="round"><path d="M40 90L40 160" stroke-width="13" opacity=".4"/><path class="vv" d="M30 86Q22 122 3 170M50 86Q58 122 77 170" stroke-width="3.4"/></g>' +
+  '<ellipse cx="42" cy="72" rx="25" ry="27" fill="rgba(0,0,0,.2)"/>' +
   '<path d="M22 70L58 70L55 85Q40 90 25 85Z" fill="#0f2a43"/><path d="M24 78Q40 83 56 78" fill="none" stroke="#e01b24" stroke-width="2.4"/>' +
   '<rect x="35.5" y="83" width="9" height="11" rx="2.5" fill="#12222f"/>' +
   '<path d="M40 7C56 21 60 44 58 70L22 70C20 44 24 21 40 7Z" fill="#f4f7f9" stroke="#0f2a43" stroke-width="2.2" stroke-linejoin="round"/>' +
@@ -708,9 +720,181 @@ function vene3d(k, b, x, y, vW, vH) {
   const sx = K.bx + (px - k.cv.clientWidth / 2) * m, sy = K.by - d * Math.cos(K.th) * m;
   el.hidden = sx < -60 || sx > K.W + 60 || sy < -60 || sy > K.H + 80;
   el.classList.toggle('himmea', !!b.himmea);
+  const vauhti = b.nopeus > 1 && !b.himmea; el.classList.toggle('vauhti', vauhti); if (vauhti) el.style.setProperty('--vp', rajaa(b.nopeus * 1.944 / 14, .4, 1.15).toFixed(2));
   el.style.transform = 'translate(' + sx.toFixed(1) + 'px,' + sy.toFixed(1) + 'px) translate(-50%,-62%) scale(' + rajaa(m, .55, 1.25).toFixed(3) + ') rotate(' + (rel / RAD).toFixed(1) + 'deg)';
   el.dataset.x = Math.round(sx); el.dataset.y = Math.round(sy);
   return true;
+}
+// 3D-näkymän merimerkit: väylätietojen merkit (vayla.merkit = [lon, lat, laji, nimi, rakenne]) piirretään pystyssä seisovina kuvina
+// kallistetun kartan päälle omalle, kallistamattomalle piirtoalustalle (#kMerkit3d). Paikka lasketaan samalla projektiolla kuin veneen kuva.
+// Kuvat ovat yksinkertaistuksia: väri lajin mukaan, muoto rakenteen mukaan. Linjataulun ja loiston todellista väritystä aineisto ei kerro.
+function merkit3d(k, X, Y, vW, vH, z) {
+  const el = $('#kMerkit3d'); if (!el) return;
+  const K = k.kall, kyltit = (K && lisa.kyltit) || [], alukset = (K && lisa.alukset3d) || [], merkit = K && vayla && z >= 11.5 ? vayla.merkit : [];
+  if (!K || (!merkit.length && !kyltit.length && !alukset.length)) { el.hidden = true; el.dataset.n = el.dataset.kyltit = el.dataset.alukset = 0; return; }
+  const dpr = Math.min(window.devicePixelRatio || 1, 2); el.hidden = false; el.width = K.W * dpr; el.height = K.H * dpr;
+  const c = el.getContext('2d'); c.scale(dpr, dpr);
+  const a = k.ankkuri(), kr = k.kierto || 0, co = Math.cos(kr), si = Math.sin(kr), sth = Math.sin(K.th), cth = Math.cos(K.th), cw = k.cv.clientWidth / 2, zk = .8 * rajaa(2 ** ((z - 14) * .5), .6, 1.25);
+  // piirtoalueen kohta -> [näytön y, näytön x, mittakaava] tai null, jos kohta ei ole näkyvissä
+  const nayttoon = (x, y) => {
+    const qx = x - vW / 2, qy = y - vH / 2, px = a[0] + qx * co - qy * si, py = a[1] + qx * si + qy * co, d = a[1] - py, m = K.P / (K.P + d * sth);
+    if (!(m > .3 && m < 2.2)) return null;
+    const sx = K.bx + (px - cw) * m, sy = K.by - d * cth * m; return sx < -30 || sx > K.W + 30 || sy < -10 || sy > K.H + 80 ? null : [sy, sx, m];
+  };
+  let lista = [], kl = [];
+  for (const mk of merkit) { const x = X(mk[0]), y = Y(mk[1]); if (x < 0 || y < 0 || x > vW || y > vH) continue; const p = nayttoon(x, y); if (p) { p.push(mk, null); lista.push(p); } }
+  if (lista.length > 300) { lista.sort((p, q) => q[2] - p[2]); lista.length = 300; }      // tiheässä saaristossa vain lähimmät
+  // Pystykyltit: satamat ja palvelut, saunat ja omat kalapaikat. Kyltin taulun kohdalle kirjataan myös napautusalue kartan tasolle.
+  for (const ky of kyltit) { const p = nayttoon(ky.x, ky.y); if (p) { p.push(null, ky); kl.push(p); } }
+  if (kl.length > 120) { kl.sort((p, q) => q[2] - p[2]); kl.length = 120; }
+  for (const p of kl) { const ky = p[4], s = rajaa(p[2], .5, 1.15), d = 34 * s / (cth * p[2]); ky.n = [p[1], p[0], s]; lisa.osumat.push({ x: ky.x - d * si, y: ky.y - d * co, r: ky.r + 6, laji: ky.laji, d: ky.d }); }
+  // AIS-alukset kolmiulotteisina hahmoina, keula kulkusuuntaan
+  const al = []; for (const u of alukset) { const p = nayttoon(u.x, u.y); if (p) { p.push(null, null, u); al.push(p); } }
+  lista = lista.concat(kl, al); lista.sort((p, q) => p[0] - q[0]);                            // kaukaisimmat ensin, lähimmät päälle
+  for (const [sy, sx, m, mk, ky, alus] of lista) {
+    c.globalAlpha = rajaa((m - .3) / .22, .25, 1);                                        // kaukaisimmat haalistuvat
+    if (alus) { c.globalAlpha = 1; piirraAlus3d(c, sx, sy, m * rajaa(2 ** ((z - 13) * .45), .55, 1.5), alus, kr, cth, sth); }
+    else if (mk) piirraMerkki3d(c, sx, sy, m * zk, mk); else piirraKyltti3d(c, sx, sy, rajaa(m, .5, 1.15), ky);
+  }
+  el.dataset.n = lista.length - kl.length - al.length; el.dataset.kyltit = kl.length; el.dataset.alukset = al.length;
+}
+// Pystykyltti: tolppa ja sen päässä kohteen kuvake; nimi tolpan juurella, kun kohde on lähellä.
+// AIS-alus 3D-näkymässä: runko, kansi ja kansirakenne nostetaan veden pinnasta pystyyn (särmiö), jolloin alus näyttää oikealta mistä suunnasta tahansa.
+// Koko ja väritys aluksen tyypin ja AIS-tietojen mittojen mukaan (symbolinen, ei mittakaavassa). kr = kartan kierto, cth/sth = kallistuksen kosini ja sini.
+function alusMalli(u) {
+  const t = u.tieto || {}, k = t.shipType, pit = (t.referencePointA || 0) + (t.referencePointB || 0);
+  const L = pit > 5 ? rajaa(18 + pit * .22, 20, 72) : null;
+  if (k === 36) return { L: L || 24, W: 7, h: 3, runko: '#f4f7f9', kansi: '#dfe7ec', purje: true };
+  if (k === 37) return { L: L || 22, W: 8, h: 3.5, runko: '#f4f7f9', kansi: '#dfe7ec', talo: [.15, .5, .6, 4, '#ffffff'] };
+  if (k >= 60 && k < 70) return { L: L || 54, W: 13, h: 7, runko: '#ffffff', kansi: '#dfe7ec', talo: [-.38, .34, .82, 9, '#f4f7f9'], raita: '#1565c0', piippu: '#1565c0' };
+  if (k >= 80 && k < 90) return { L: L || 58, W: 12, h: 5, runko: '#7a1f1f', kansi: '#b9584a', talo: [-.46, -.22, .8, 9, '#f4f7f9'], piippu: '#12222f' };
+  if (k >= 70 && k < 80) return { L: L || 58, W: 12, h: 6, runko: '#243b53', kansi: '#8a98a3', talo: [-.46, -.24, .8, 10, '#f4f7f9'], piippu: '#e8590c', kontit: true };
+  if (k === 50 || k === 51 || k === 55) return { L: L || 24, W: 8, h: 4, runko: k === 51 ? '#e8590c' : '#12222f', kansi: '#dfe7ec', talo: [-.05, .3, .7, 5, k === 51 ? '#ffd43b' : '#f4f7f9'] };
+  if (k === 52) return { L: L || 26, W: 10, h: 5, runko: '#12222f', kansi: '#8a4b16', talo: [0, .32, .7, 7, '#f4f7f9'], piippu: '#12222f' };
+  if (k === 30) return { L: L || 26, W: 8, h: 4, runko: '#1f6f78', kansi: '#dfe7ec', talo: [.08, .4, .7, 5, '#f4f7f9'] };
+  return { L: L || 34, W: 10, h: 5, runko: '#455a64', kansi: '#aab8c1', talo: [-.4, -.1, .75, 7, '#f4f7f9'] };
+}
+function piirraAlus3d(c, x, y, s, u, kr, cth, sth) {
+  const M = alusMalli(u), L = M.L, W = M.W, rel = u.suunta * RAD + kr, co = Math.cos(rel), si = Math.sin(rel), tumma = '#12222f';
+  // aluksen oma koordinaatisto (lx = oikealle, ly = keulaan, kork = ylös) -> näyttö
+  const P = (lx, ly, kork) => [x + (lx * co + ly * si) * s, y - (-lx * si + ly * co) * cth * s - kork * sth * s];
+  const syv = (lx, ly) => -lx * si + ly * co;      // etäisyys katsojasta poispäin: suurempi = kauempana
+  // särmiö: pohjan ääriviiva nostetaan välille h0..h1; sivut kaukaisimmasta lähimpään, lopuksi kansi
+  const sarmio = (aari, h0, h1, sivu, kansi) => {
+    const n = aari.length, sivut = []; for (let i = 0; i < n; i++) { const a = aari[i], b = aari[(i + 1) % n]; sivut.push([syv((a[0] + b[0]) / 2, (a[1] + b[1]) / 2), a, b]); }
+    sivut.sort((p, q) => q[0] - p[0]); c.lineJoin = 'round'; c.lineWidth = .9; c.strokeStyle = tumma;
+    for (const [, a, b] of sivut) { const p1 = P(a[0], a[1], h0), p2 = P(b[0], b[1], h0), p3 = P(b[0], b[1], h1), p4 = P(a[0], a[1], h1); c.beginPath(); c.moveTo(p1[0], p1[1]); c.lineTo(p2[0], p2[1]); c.lineTo(p3[0], p3[1]); c.lineTo(p4[0], p4[1]); c.closePath(); c.fillStyle = sivu; c.fill(); c.stroke(); }
+    c.beginPath(); aari.forEach((a, i) => { const p = P(a[0], a[1], h1); i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); }); c.closePath(); c.fillStyle = kansi; c.fill(); c.stroke();
+  };
+  const laatikko = (y0, y1, lev, h0, h1, sivu, katto) => sarmio([[-lev / 2, y0], [lev / 2, y0], [lev / 2, y1], [-lev / 2, y1]], h0, h1, sivu, katto);
+  c.save();
+  // varjo ja liikkuvan aluksen vanavesi veden pinnassa
+  const runko = [[0, L / 2], [W * .42, L * .3], [W / 2, L * .08], [W / 2, -L / 2], [-W / 2, -L / 2], [-W / 2, L * .08], [-W * .42, L * .3]];
+  c.beginPath(); runko.forEach((a, i) => { const p = P(a[0] * 1.15 + 1.5, a[1] * 1.04, 0); i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1]); }); c.closePath(); c.fillStyle = 'rgba(0,0,0,.2)'; c.fill();
+  if (u.a.sog > 1) { const v = rajaa(u.a.sog * 1.6, 6, 36), a = P(0, -L / 2, 0), g = c.createLinearGradient(a[0], a[1], ...P(0, -L / 2 - v, 0)); g.addColorStop(0, 'rgba(255,255,255,.85)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    c.strokeStyle = g; c.lineCap = 'round'; c.lineWidth = 1.6 * s; c.beginPath(); for (const d of [-1, 1]) { const p1 = P(d * W * .45, -L / 2, 0), p2 = P(d * (W * .5 + v * .3), -L / 2 - v, 0); c.moveTo(p1[0], p1[1]); c.lineTo(p2[0], p2[1]); } c.stroke(); }
+  sarmio(runko, 0, M.h, M.runko, M.kansi);
+  if (M.raita) { c.strokeStyle = M.raita; c.lineWidth = 1.4 * s; c.beginPath(); for (const d of [-1, 1]) { const p1 = P(d * W / 2, -L / 2, M.h * .55), p2 = P(d * W / 2, L * .08, M.h * .55); c.moveTo(p1[0], p1[1]); c.lineTo(p2[0], p2[1]); } c.stroke(); }
+  // kansirakenteet aluksen pituussuunnassa; kauempana oleva pää piirretään ensin
+  const osat = [];
+  if (M.kontit) for (let i = 0; i < 3; i++) { const y0 = -L * .2 + i * L * .2; osat.push([y0, y0 + L * .17, W * .74, M.h, M.h + 4, ['#c0504d', '#1976d2', '#1f8a4c'][i], ['#d9756f', '#5a9fe0', '#58b07e'][i]]); }
+  if (M.talo) { const [a, b, lev, kork, vari] = M.talo; osat.push([L * a, L * b, W * lev, M.h, M.h + kork, '#cfd8dd', vari]); if (M.piippu) osat.push([L * (a + (b - a) * .25), L * (a + (b - a) * .5), W * .3, M.h + kork, M.h + kork + 4, M.piippu, M.piippu]); }
+  osat.sort((p, q) => (co >= 0 ? q[0] - p[0] : p[0] - q[0]) || p[3] - q[3]);
+  for (const o of osat) laatikko(...o);
+  if (M.purje) { const j = P(0, L * .08, M.h), h = P(0, L * .08, M.h + 30), pe = P(0, -L * .38, M.h + 3), ke = P(0, L * .46, M.h + 1);
+    c.beginPath(); c.moveTo(h[0], h[1]); c.lineTo(pe[0], pe[1]); c.lineTo(j[0], j[1]); c.closePath(); c.fillStyle = 'rgba(255,255,255,.95)'; c.fill(); c.lineWidth = .9; c.strokeStyle = tumma; c.stroke();
+    c.beginPath(); c.moveTo(h[0], h[1]); c.lineTo(ke[0], ke[1]); c.lineTo(j[0], j[1]); c.closePath(); c.fillStyle = 'rgba(235,242,247,.95)'; c.fill(); c.stroke();
+    c.beginPath(); c.moveTo(j[0], j[1]); c.lineTo(h[0], h[1]); c.lineWidth = 1.3; c.stroke(); }
+  c.restore();
+  if (u.nimi && s > .5) { c.save(); c.font = '600 ' + Math.round(10.5 + 2 * Math.min(s, 1)) + 'px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top'; c.lineJoin = 'round'; c.lineWidth = 3.5; c.strokeStyle = 'rgba(255,255,255,.92)'; const ty = y + (L / 2 * cth + 5) * s; c.strokeText(u.nimi, x, ty); c.fillStyle = '#4b1d8f'; c.fillText(u.nimi, x, ty); c.restore(); }
+}
+function piirraKyltti3d(c, x, y, s, ky) {
+  c.save(); c.translate(x, y); c.scale(s, s);
+  c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(2, 0, 7, 2.6, 0, 0, 7); c.fill();
+  c.fillStyle = '#fff'; c.fillRect(-2.2, -24, 4.4, 24); c.fillStyle = '#44525c'; c.fillRect(-1.1, -24, 2.2, 24);
+  ky.f(c, 0, -34, ky.d);
+  c.restore();
+  if (ky.nimi && s > .62) { c.save(); c.font = '600 ' + Math.round(11 + 2 * s) + 'px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top'; c.lineJoin = 'round'; c.lineWidth = 3.5; c.strokeStyle = 'rgba(255,255,255,.92)'; c.strokeText(ky.nimi, x, y + 4); c.fillStyle = ky.vari; c.fillText(ky.nimi, x, y + 4); c.restore(); }
+}
+// 3D-näkymän sää: sade ruudulla omalla piirtoalustallaan (#kSaa3d) noin 14 kertaa sekunnissa. Tuuli näkyy kartan tuulinuolina ja aallonkorkeutena (piirraLisat), ei viiruina.
+// Tuulen suunta ja nopeus (pisaroiden kallistus) = lähin tuuliennusteen piste (kytkin Tuuli ja sää), sade = sadetutkan kuva veneen kohdalla (kytkin Sadetutka) tai ennusteen sademäärä.
+const saa3d = { v: 0, suu: 0, sade: 0, ajastin: 0 };
+function saa3dSeis() { if (saa3d.ajastin) { clearInterval(saa3d.ajastin); saa3d.ajastin = 0; } const el = $('#kSaa3d'); if (el) el.hidden = true; }
+// Sataako tutkakuvan mukaan kohdassa: 0 = ei, 0,5 = sadetta, 1 = voimakasta (värin perusteella, karkea arvio).
+function tutkaSade(lat, lon) {
+  const t = tutka.ajat[tutka.anim ? tutka.i : tutka.ajat.length - 1] || 0, im = tutka.kuvat.get(t); if (!im) return 0;
+  const avain = t + '|' + lat.toFixed(2) + '|' + lon.toFixed(2); if (tutkaSade.a === avain) return tutkaSade.v;
+  const B = TUTKA.b, a = mercM(B.lo0, B.la0), b = mercM(B.lo1, B.la1), p = mercM(lon, lat), x = Math.round((p[0] - a[0]) / (b[0] - a[0]) * im.naturalWidth), y = Math.round((b[1] - p[1]) / (b[1] - a[1]) * im.naturalHeight); let v = 0;
+  if (x >= 1 && y >= 1 && x < im.naturalWidth - 1 && y < im.naturalHeight - 1) try {
+    const cv = tutkaSade.cv || (tutkaSade.cv = document.createElement('canvas')); cv.width = cv.height = 3;
+    const c = cv.getContext('2d', { willReadFrequently: true }); c.drawImage(im, x - 1, y - 1, 3, 3, 0, 0, 3, 3);
+    const d = c.getImageData(0, 0, 3, 3).data; let n = 0, lammin = 0; for (let i = 0; i < 36; i += 4) if (d[i + 3] > 40) { n++; if (d[i] > d[i + 2] + 40) lammin++; }
+    if (n >= 2) v = lammin >= 2 ? 1 : .5;
+  } catch (x) { }
+  tutkaSade.a = avain; tutkaSade.v = v; return v;
+}
+function saa3dPaivita() {
+  let v = 0, suu = 0, sade = 0;
+  if (kLive && kLive.kall) {
+    const tu = T.as.tuuli && lisa.tuuli, i = TUNNIT[lisa.tunti];
+    if (tu) { let p = null, pd = Infinity; for (const q of tu.p) { const d = (q.lat - lv.lat) ** 2 + ((q.lon - lv.lon) * .5) ** 2; if (d < pd) { pd = d; p = q; } }
+      if (p && p.nop[i] != null) { v = p.nop[i]; suu = p.suu[i] || 0; if (!T.as.tutka && p.sade && p.sade[i] > 0.1) sade = rajaa(p.sade[i] / 4, .3, 1); } }
+    if (T.as.tutka) sade = tutkaSade(lv.lat, lv.lon);
+  }
+  saa3d.v = v; saa3d.suu = suu; saa3d.sade = sade;
+  if (sade > 0) { if (!saa3d.ajastin) saa3d.ajastin = setInterval(saa3dAskel, 70); } else saa3dSeis();
+}
+function saa3dAskel() {
+  const el = $('#kSaa3d'), K = kLive && kLive.kall;
+  if (!el || !K || nakyma !== 'kartta' || !kLive.cv.isConnected || !(saa3d.sade > 0)) { saa3dSeis(); return; }
+  if (el.width !== K.W || el.height !== K.H) { el.width = K.W; el.height = K.H; } el.hidden = false;
+  const c = el.getContext('2d'), th = (saa3d.suu + 180) * RAD + (kLive.kierto || 0), ux = Math.sin(th);
+  c.clearRect(0, 0, K.W, K.H);
+  if (saa3d.sade > 0) {
+    // sade: harmaa verho ja tuulen mukaan kallistuvat pisarat ruudun tasossa
+    const N = Math.round(50 + 150 * saa3d.sade), kallistus = rajaa(ux * saa3d.v * .04, -.6, .6), L = 15 + 9 * saa3d.sade;
+    c.fillStyle = 'rgba(40,60,80,' + (.07 + .09 * saa3d.sade).toFixed(2) + ')'; c.fillRect(0, 0, K.W, K.H);
+    c.strokeStyle = 'rgba(225,238,248,.6)'; c.lineWidth = 1.2; c.lineCap = 'round'; c.beginPath();
+    for (let i = 0; i < N; i++) { const x = Math.random() * (K.W + 60) - 30, y = Math.random() * K.H; c.moveTo(x, y); c.lineTo(x + kallistus * L, y + L); }
+    c.stroke();
+    c.strokeStyle = 'rgba(40,70,100,.35)'; c.beginPath();
+    for (let i = 0; i < N / 2; i++) { const x = Math.random() * (K.W + 60) - 30, y = Math.random() * K.H; c.moveTo(x, y); c.lineTo(x + kallistus * L, y + L); }
+    c.stroke();
+  }
+  el.dataset.sade = saa3d.sade;
+}
+function piirraMerkki3d(c, x, y, s, mk) {
+  const laji = mk[2], ty = mk[4] || '', tumma = '#12222f', kelta = '#ffd43b', puna = '#d62828', vihrea = '#1f8a4c', valk = '#f4f7f9', harmaa = '#8a98a3';
+  const varit = { 1: [puna], 2: [vihrea], 3: [tumma, kelta], 4: [kelta, tumma], 5: [kelta, tumma, kelta], 6: [tumma, kelta, tumma], 7: [tumma, puna, tumma], 8: [puna], 9: [kelta] }[laji] || [harmaa];
+  c.save(); c.translate(x, y); c.scale(s, s); c.lineJoin = 'round'; c.lineWidth = 1.1; c.strokeStyle = tumma;
+  c.fillStyle = 'rgba(0,0,0,.22)'; c.beginPath(); c.ellipse(2.5, 0, 9, 3.2, 0, 0, 7); c.fill();      // varjo veden pinnalla
+  // pystykappale: pohja kohdassa y0, korkeus h, leveys alhaalla w ja ylhäällä w2, värit ylhäältä alas vaakaraitoina
+  const kappale = (w, h, y0, vr, w2) => {
+    const n = vr.length, lev = t => w2 + (w - w2) * t;
+    for (let i = 0; i < n; i++) { const ya = y0 - h + h * i / n, yb = y0 - h + h * (i + 1) / n, wa = lev(i / n), wb = lev((i + 1) / n); c.beginPath(); c.moveTo(-wa / 2, ya); c.lineTo(wa / 2, ya); c.lineTo(wb / 2, yb); c.lineTo(-wb / 2, yb); c.closePath(); c.fillStyle = vr[i]; c.fill(); }
+    if (laji === 8) { c.fillStyle = '#fff'; c.fillRect(-w2 * .17, y0 - h, w2 * .34, h); }      // turvavesimerkki: punavalkoiset pystyraidat
+    c.beginPath(); c.moveTo(-w2 / 2, y0 - h); c.lineTo(w2 / 2, y0 - h); c.lineTo(w / 2, y0); c.lineTo(-w / 2, y0); c.closePath(); c.stroke();
+  };
+  const kartio = (cy, ylos, r) => { c.beginPath(); if (ylos) { c.moveTo(0, cy - r); c.lineTo(r, cy + r); c.lineTo(-r, cy + r); } else { c.moveTo(0, cy + r); c.lineTo(r, cy - r); c.lineTo(-r, cy - r); } c.closePath(); c.fillStyle = tumma; c.fill(); };
+  const pallo = (cy, r, vari) => { c.beginPath(); c.arc(0, cy, r, 0, 7); c.fillStyle = vari; c.fill(); c.stroke(); };
+  // huippumerkki kappaleen yläreunan yl päälle: kardinaalimerkeissä kaksi kartiota (pohjois: kärjet ylös, etelä: alas, länsi: kärjet vastakkain, itä: kannat vastakkain)
+  const huippu = yl => {
+    if (laji >= 3 && laji <= 6) { const u = { 3: [1, 1], 4: [0, 0], 5: [0, 1], 6: [1, 0] }[laji]; c.fillStyle = tumma; c.fillRect(-.6, yl - 16, 1.2, 16); kartio(yl - 12.5, u[0], 3.3); kartio(yl - 4.8, u[1], 3.3); }
+    else if (laji === 7) { c.fillStyle = tumma; c.fillRect(-.6, yl - 14, 1.2, 14); pallo(yl - 11.5, 3, tumma); pallo(yl - 4.5, 3, tumma); }
+    else if (laji === 8) { c.fillStyle = tumma; c.fillRect(-.6, yl - 8, 1.2, 8); pallo(yl - 7, 3.2, puna); }
+    else if (laji === 2) { c.beginPath(); c.moveTo(0, yl - 8); c.lineTo(4, yl); c.lineTo(-4, yl); c.closePath(); c.fillStyle = vihrea; c.fill(); c.stroke(); }      // oikean reunan merkin kartiohuippu
+  };
+  const lyhty = (yl, w) => { c.fillStyle = tumma; c.fillRect(-w / 2, yl - 6, w, 6); c.beginPath(); c.arc(0, yl - 3, 2.1, 0, 7); c.fillStyle = kelta; c.fill(); c.beginPath(); c.moveTo(-w / 2 - 1, yl - 6); c.lineTo(0, yl - 10); c.lineTo(w / 2 + 1, yl - 6); c.closePath(); c.fillStyle = tumma; c.fill(); };
+  if (ty === 'Viitta') { kappale(4.6, 40, 0, varit, 4.2); if (laji === 2) { c.beginPath(); c.moveTo(0, -46); c.lineTo(2.1, -40); c.lineTo(-2.1, -40); c.closePath(); c.fillStyle = vihrea; c.fill(); c.stroke(); } else if (laji === 7 || laji === 8) huippu(-40); }
+  else if (ty === 'Poiju') { kappale(12, 28, 0, varit, 8); huippu(-28); }
+  else if (ty === 'Reunamerkki') { c.beginPath(); c.moveTo(-10, 0); c.lineTo(10, 0); c.lineTo(7.5, -6); c.lineTo(-7.5, -6); c.closePath(); c.fillStyle = '#aab8c1'; c.fill(); c.stroke(); kappale(10, 28, -6, varit, 9); huippu(-34); }
+  else if (/majakka/i.test(ty)) { kappale(15, 50, 0, [valk, puna, valk], 9); lyhty(-50, 9); }
+  else if (/loisto/i.test(ty)) { kappale(10, 28, 0, [valk], 7); lyhty(-28, 7); }
+  else if (ty === 'Linjamerkki') { c.fillStyle = '#555'; c.fillRect(-1, -24, 2, 24); c.beginPath(); c.rect(-7.5, -42, 15, 19); c.fillStyle = kelta; c.fill(); c.fillStyle = puna; c.fillRect(-2.5, -42, 5, 19); c.beginPath(); c.rect(-7.5, -42, 15, 19); c.stroke(); }
+  else if (ty === 'Kummeli') kappale(17, 20, 0, [valk], 7);
+  else if (ty === 'Tutkamerkki') { c.fillStyle = '#555'; c.fillRect(-1, -30, 2, 30); c.beginPath(); c.moveTo(0, -44); c.lineTo(7, -35); c.lineTo(0, -26); c.lineTo(-7, -35); c.closePath(); c.fillStyle = '#c4ccd1'; c.fill(); c.stroke(); }
+  else { c.fillStyle = '#555'; c.fillRect(-1, -28, 2, 28); c.beginPath(); c.rect(-4.5, -36, 9, 9); c.fillStyle = harmaa; c.fill(); c.stroke(); }
+  c.restore();
 }
 function kallistusAseta() {
   const cv = kLive.cv, p = cv.parentElement;
@@ -730,7 +914,7 @@ function karttaUudelleen() {
 function liveKartta() {
   const cv = $('#lKartta'); if (!cv) return;
   if (!kLive || kLive.cv !== cv) { kLive = new Kartta(cv, lv); kLive.onMuutos = seuraaMerkki; lk = null; }
-  kLive.reitti = reitti && !omaR ? reitti.r.pisteet : null; kLive.lisat = piirraLisat; kLive.suuntaviiva = T.as.suuntaviiva; kLive.reittiKohta = !omaR && seurPaalla() && seur.aktiivinen ? seur.k : null; kallistusAseta(); kLive.kierto = kiertoNyt();      // omaa reittiä muokatessa näytetään vain muokattava reitti
+  kLive.reitti = reitti && !omaR ? reitti.r.pisteet : null; kLive.lisat = piirraLisat; kLive.suuntaviiva = T.as.suuntaviiva; kLive.reittiKohta = !omaR && seurPaalla() && seur.aktiivinen ? seur.k : null; kallistusAseta(); if (!liike.a) kLive.kierto = kiertoNyt();      // omaa reittiä muokatessa näytetään vain muokattava reitti
   const f = gps.viime, paalla = watchId != null || tal.tila === 'matka';
   if (!f || !paalla) {            // ei sijaintia juuri nyt: viimeisin tunnettu paikka, muuten Suomenlahti
     if (lk) return; lk = { tyhja: true };
@@ -746,10 +930,33 @@ function liveKartta() {
   else if (ed) kulku = (Math.atan2(Math.sin((f.lon - ed.lon) * RAD) * Math.cos(f.lat * RAD), Math.cos(ed.lat * RAD) * Math.sin(f.lat * RAD) - Math.sin(ed.lat * RAD) * Math.cos(f.lat * RAD) * Math.cos((f.lon - ed.lon) * RAD)) / RAD + 360) % 360;
   lk = { aika: Date.now(), lat: f.lat, lon: f.lon }; T.sij = [f.lat, f.lon];
   if (lv.alussa) { lv.z = 12; lv.alussa = false; }
-  if (lv.seuraa) { lv.lat = f.lat; lv.lon = f.lon; }
   kLive.pts = tal.m ? tal.m.pisteet.concat([[f.t, f.lat, f.lon, f.sog]]) : [];
-  kLive.vene = { lat: f.lat, lon: f.lon, suunta: kulku }; kLive.kierto = kiertoNyt();
+  // Pehmeä liike: vene ja kartta liukuvat edellisestä paikasta uuteen paikannusten välisen ajan kuluessa (eivät hyppää).
+  const b0 = kLive.vene;
+  if (PEHMEA() && ed && b0 && !b0.himmea && etaisyys(b0.lat, b0.lon, f.lat, f.lon) < 400) {
+    liike.a = { lat0: b0.lat, lon0: b0.lon, s0: b0.suunta, k0: kLive.kierto || 0, lat1: f.lat, lon1: f.lon, s1: kulku, nopeus: f.sog, t0: Date.now(), kesto: rajaa(Date.now() - ed.aika, 700, 3000) };
+    if (!liike.ajastin) liike.ajastin = setInterval(liikeAskel, 70);
+    liikeAskel(); return;
+  }
+  liikeSeis();
+  if (lv.seuraa) { lv.lat = f.lat; lv.lon = f.lon; }
+  kLive.vene = { lat: f.lat, lon: f.lon, suunta: kulku, nopeus: f.sog }; kLive.kierto = kiertoNyt();
   kLive.piirra(); seuraaMerkki();
+}
+// Pehmeän liikkeen tila ja askel. Kulmat (veneen suunta asteina, kartan kierto radiaaneina) liu'utetaan lyhintä tietä.
+// Itsetestissä (?testi) liike on pois, koska tarkistukset lukevat tilan heti paikannuksen jälkeen; window.__pehmea = true ottaa sen käyttöön.
+const liike = { a: null, ajastin: 0 };
+const PEHMEA = () => !/[?&]testi/.test(location.search) || !!window.__pehmea;
+const kulmaVali = (a, b, t, kierros) => { let d = (b - a) % kierros; if (d > kierros / 2) d -= kierros; if (d < -kierros / 2) d += kierros; return a + d * t; };
+function liikeSeis() { liike.a = null; if (liike.ajastin) { clearInterval(liike.ajastin); liike.ajastin = 0; } }
+function liikeAskel() {
+  const a = liike.a; if (!a || !kLive || !kLive.cv.isConnected || nakyma !== 'kartta') { liikeSeis(); return; }
+  const t = rajaa((Date.now() - a.t0) / a.kesto, 0, 1), lat = a.lat0 + (a.lat1 - a.lat0) * t, lon = a.lon0 + (a.lon1 - a.lon0) * t, k1 = kiertoNyt();
+  kLive.vene = { lat, lon, suunta: a.s1 == null ? null : a.s0 == null ? a.s1 : (kulmaVali(a.s0, a.s1, t, 360) + 360) % 360, nopeus: a.nopeus };
+  kLive.kierto = t >= 1 ? k1 : kulmaVali(a.k0, k1, t, 2 * Math.PI);
+  if (lv.seuraa) { lv.lat = lat; lv.lon = lon; }
+  kLive.piirra(); seuraaMerkki();
+  if (t >= 1) liikeSeis();
 }
 
 // Kartta-alueen lataus talteen: päänäkymässä näkyvä alue valitulla tarkkuudella.
@@ -1795,8 +2002,51 @@ function piirraTutka(c, X, Y, W, H) {
 const tuuliVari = v => v < 4 ? '#1f8a4c' : v < 8 ? '#0b7a8f' : v < 11 ? '#c77700' : v < 14 ? '#e8590c' : '#c0392b';
 const aisTyyppi = k => k == null ? '' : k === 30 ? 'Kalastusalus' : k === 36 ? 'Purjealus' : k === 37 ? 'Huvialus' : k === 50 ? 'Luotsialus' : k === 51 ? 'Meripelastusalus' : k === 52 ? 'Hinaaja' : k === 55 ? 'Viranomaisalus' : k >= 40 && k < 50 ? 'Pika-alus' : k >= 60 && k < 70 ? 'Matkustaja-alus' : k >= 70 && k < 80 ? 'Rahtialus' : k >= 80 && k < 90 ? 'Säiliöalus' : 'Muu alus';
 // Piirtää lisätiedot kartalle ja kirjaa napautettavat kohteet (lisa.osumat).
+// 3D-näkymän väylät: väylätietojen keskilinjat piirretään kartan pintaan leveinä, läpikuultavina kaistoina, joiden keskellä kulkee kirkas viiva.
+// Väri kulkusyvyyden mukaan (syvä tummansininen, keskisyvä sininen, matala turkoosi); oman veneen syväykselle liian matala väylä punaisena katkoviivana.
+function piirraVaylat3d(c, X, Y, W, H, z) {
+  if (!vayla || z < 10 || norjaNyt()) { if (c.canvas) c.canvas.dataset.vaylat3d = 0; return; }
+  const lo0 = lonX(mx(lv.lon, z) - W / 2, z), lo1 = lonX(mx(lv.lon, z) + W / 2, z), la1 = latY(my(lv.lat, z) - H / 2, z), la0 = latY(my(lv.lat, z) + H / 2, z);
+  const syv = T.vene.syvays || 0, polut = [new Path2D(), new Path2D(), new Path2D(), new Path2D()]; let n = 0;
+  for (const l of vayla.linjat) {
+    let b = l.b; if (!b) { b = l.b = [180, 90, -180, -90]; for (let i = 0; i < l.p.length; i += 2) { if (l.p[i] < b[0]) b[0] = l.p[i]; if (l.p[i] > b[2]) b[2] = l.p[i]; if (l.p[i + 1] < b[1]) b[1] = l.p[i + 1]; if (l.p[i + 1] > b[3]) b[3] = l.p[i + 1]; } }
+    if (b[2] < lo0 || b[0] > lo1 || b[3] < la0 || b[1] > la1) continue;
+    const p = polut[syv && l.s && l.s < syv ? 3 : !l.s || l.s < 4 ? 2 : l.s < 9 ? 1 : 0]; n++;
+    for (let i = 0; i < l.p.length; i += 2) i ? p.lineTo(X(l.p[i]), Y(l.p[i + 1])) : p.moveTo(X(l.p[i]), Y(l.p[i + 1]));
+  }
+  const lev = rajaa(9 * 2 ** (z - 13), 6, 30), varit = ['#0b3d91', '#1976d2', '#0ea5b7', '#e01b24'];
+  c.save(); c.lineJoin = c.lineCap = 'round';
+  polut.forEach((p, i) => { c.globalAlpha = i === 3 ? .16 : .24; c.lineWidth = lev; c.strokeStyle = varit[i]; c.stroke(p); });      // kaista
+  polut.forEach((p, i) => { c.globalAlpha = .85; c.lineWidth = 4.4; c.strokeStyle = '#fff'; c.stroke(p); c.globalAlpha = 1; c.lineWidth = 2.2; c.strokeStyle = varit[i]; c.setLineDash(i === 3 ? [7, 7] : []); c.stroke(p); c.setLineDash([]); });      // keskiviiva
+  c.restore(); c.canvas.dataset.vaylat3d = n;
+}
+// Kohteiden kuvakkeet (ympyrä ja symboli) kohtaan x, y: samat litteässä kartassa ja 3D-näkymän pystykylteissä.
+function satamaIkoni(c, x, y, s) {
+  const r = s.l === 'satama' ? 9 : s.l === 'luiska' ? 8 : 7;
+  c.beginPath(); c.arc(x, y, r, 0, 7); c.fillStyle = s.l === 'satama' ? '#0f2a43' : s.l === 'polttoaine' ? '#e8590c' : s.l === 'luiska' ? '#6741d9' : '#6b7780'; c.fill(); c.lineWidth = 2; c.strokeStyle = '#fff'; c.stroke();
+  c.strokeStyle = c.fillStyle = '#fff'; c.lineWidth = 1.6; c.beginPath();
+  if (s.l === 'satama') { c.moveTo(x, y - 5); c.lineTo(x, y + 5); c.moveTo(x - 3, y - 2.5); c.lineTo(x + 3, y - 2.5); c.moveTo(x - 5, y + 1.5); c.quadraticCurveTo(x - 4.5, y + 5.5, x, y + 5.5); c.quadraticCurveTo(x + 4.5, y + 5.5, x + 5, y + 1.5); c.stroke(); }      // ankkuri
+  else if (s.l === 'polttoaine') { c.moveTo(x, y - 4.5); c.bezierCurveTo(x + 4.5, y, x + 3.5, y + 4.5, x, y + 4.5); c.bezierCurveTo(x - 3.5, y + 4.5, x - 4.5, y, x, y - 4.5); c.fill(); }      // pisara
+  else if (s.l === 'luiska') { c.moveTo(x - 5, y + 3.2); c.lineTo(x + 4.5, y + 3.2); c.lineTo(x + 4.5, y - 3.8); c.closePath(); c.fill(); }      // kalteva luiska
+  else { c.arc(x, y, 2, 0, 7); c.fill(); }
+}
+function kalaIkoni(c, x, y) {
+  c.beginPath(); c.arc(x, y, 14, 0, 7); c.fillStyle = '#0b7a8f'; c.fill(); c.lineWidth = 2.5; c.strokeStyle = '#fff'; c.stroke();
+  c.fillStyle = '#fff'; c.beginPath(); c.ellipse(x - 2, y, 7, 4.2, 0, 0, 7); c.fill();
+  c.beginPath(); c.moveTo(x + 3.5, y); c.lineTo(x + 9.5, y - 4.6); c.lineTo(x + 9.5, y + 4.6); c.closePath(); c.fill();
+  c.beginPath(); c.arc(x - 5.2, y - 1, 1.1, 0, 7); c.fillStyle = '#0b7a8f'; c.fill();
+}
+function saunaIkoni(c, x, y) {
+  c.beginPath(); c.arc(x, y, 12, 0, 7); c.fillStyle = '#8a4b16'; c.fill(); c.lineWidth = 2.5; c.strokeStyle = '#fff'; c.stroke();
+  c.fillStyle = '#fff'; c.fillRect(x - 5.5, y + 2, 11, 5);
+  c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.lineCap = 'round'; c.beginPath();
+  for (const dx of [-3.5, 0, 3.5]) { c.moveTo(x + dx, y - 0.5); c.quadraticCurveTo(x + dx - 2, y - 2.5, x + dx, y - 4.5); c.quadraticCurveTo(x + dx + 2, y - 6.5, x + dx, y - 8); }
+  c.stroke();
+}
 function piirraLisat(c, X, Y, W, H, z) {
   lisa.osumat = [];
+  const k3 = lisa.kyltit = kLive && kLive.kall && c.canvas === kLive.cv ? [] : null; lisa.alukset3d = k3 ? [] : null;      // 3D-näkymän pystykyltit kerätään tähän
+  if (k3) piirraVaylat3d(c, X, Y, W, H, z);
   piirraTutka(c, X, Y, W, H);
   piirraNorjaVaylat(c, X, Y, W, H, z);
   piirraSyvyys(c, X, Y, W, H, z);
@@ -1816,36 +2066,25 @@ function piirraLisat(c, X, Y, W, H, z) {
   const satamatPaalla = T.as.satamat || norjaNyt();      // Norjan merikartalla satamat näkyvät aina
   if ((satamatPaalla || T.as.luiskat) && lisa.satamat && z >= 8.5) for (const s of lisa.satamat.lista) {
     if (s.l === 'luiska' ? !T.as.luiskat || z < 10 : !satamatPaalla || (s.l !== 'satama' && z < 11)) continue;
-    const x = X(s.lo), y = Y(s.la); if (!sisalla(x, y)) continue; pysty(c, x, y);
+    const x = X(s.lo), y = Y(s.la); if (!sisalla(x, y)) continue;
     const r = s.l === 'satama' ? 9 : s.l === 'luiska' ? 8 : 7;
-    c.beginPath(); c.arc(x, y, r, 0, 7); c.fillStyle = s.l === 'satama' ? '#0f2a43' : s.l === 'polttoaine' ? '#e8590c' : s.l === 'luiska' ? '#6741d9' : '#6b7780'; c.fill(); c.lineWidth = 2; c.strokeStyle = '#fff'; c.stroke();
-    c.strokeStyle = c.fillStyle = '#fff'; c.lineWidth = 1.6; c.beginPath();
-    if (s.l === 'satama') { c.moveTo(x, y - 5); c.lineTo(x, y + 5); c.moveTo(x - 3, y - 2.5); c.lineTo(x + 3, y - 2.5); c.moveTo(x - 5, y + 1.5); c.quadraticCurveTo(x - 4.5, y + 5.5, x, y + 5.5); c.quadraticCurveTo(x + 4.5, y + 5.5, x + 5, y + 1.5); c.stroke(); }      // ankkuri
-    else if (s.l === 'polttoaine') { c.moveTo(x, y - 4.5); c.bezierCurveTo(x + 4.5, y, x + 3.5, y + 4.5, x, y + 4.5); c.bezierCurveTo(x - 3.5, y + 4.5, x - 4.5, y, x, y - 4.5); c.fill(); }      // pisara
-    else if (s.l === 'luiska') { c.moveTo(x - 5, y + 3.2); c.lineTo(x + 4.5, y + 3.2); c.lineTo(x + 4.5, y - 3.8); c.closePath(); c.fill(); }      // kalteva luiska
-    else { c.arc(x, y, 2, 0, 7); c.fill(); }
-    if (z >= 12 && s.n) teksti(s.n, x, y + r + 3, 12, '#0f2a43'); c.restore();
+    // 3D-näkymässä kohde piirretään pystykylttinä (merkit3d), muuten litteänä merkkinä kartalle
+    if (k3) k3.push({ x, y, f: satamaIkoni, d: s, nimi: z >= 12 && s.n ? s.n : '', vari: '#0f2a43', laji: 'satama', r: r + 12 });
+    else { pysty(c, x, y); satamaIkoni(c, x, y, s); if (z >= 12 && s.n) teksti(s.n, x, y + r + 3, 12, '#0f2a43'); c.restore(); }
     lisa.osumat.push({ x, y, r: r + 12, laji: 'satama', d: s });
   }
   // Omat kalapaikat: kalan kuva ympyrässä. Napautus avaa paikan tiedot.
   if (T.as.kalapaikat && z >= 7.5) for (const k of T.kalapaikat) {
-    const x = X(k.lon), y = Y(k.lat); if (!sisalla(x, y)) continue; pysty(c, x, y);
-    c.beginPath(); c.arc(x, y, 14, 0, 7); c.fillStyle = '#0b7a8f'; c.fill(); c.lineWidth = 2.5; c.strokeStyle = '#fff'; c.stroke();
-    c.fillStyle = '#fff'; c.beginPath(); c.ellipse(x - 2, y, 7, 4.2, 0, 0, 7); c.fill();
-    c.beginPath(); c.moveTo(x + 3.5, y); c.lineTo(x + 9.5, y - 4.6); c.lineTo(x + 9.5, y + 4.6); c.closePath(); c.fill();
-    c.beginPath(); c.arc(x - 5.2, y - 1, 1.1, 0, 7); c.fillStyle = '#0b7a8f'; c.fill();
-    if (z >= 12 && k.nimi) teksti(k.nimi, x, y + 16, 12, '#075565'); c.restore();
+    const x = X(k.lon), y = Y(k.lat); if (!sisalla(x, y)) continue;
+    if (k3) k3.push({ x, y, f: kalaIkoni, d: k, nimi: z >= 12 && k.nimi ? k.nimi : '', vari: '#075565', laji: 'kala', r: 26 });
+    else { pysty(c, x, y); kalaIkoni(c, x, y); if (z >= 12 && k.nimi) teksti(k.nimi, x, y + 16, 12, '#075565'); c.restore(); }
     lisa.osumat.push({ x, y, r: 26, laji: 'kala', d: k });
   }
   // Yleiset saunat saarissa (tiedot/saunat.js): ruskea merkki, jossa kiuas ja löyly. Napautus avaa tiedot.
   if (T.as.saunat && z >= 8.5) for (const k of saunaLista()) {
-    const x = X(k.lo), y = Y(k.la); if (!sisalla(x, y)) continue; pysty(c, x, y);
-    c.beginPath(); c.arc(x, y, 12, 0, 7); c.fillStyle = '#8a4b16'; c.fill(); c.lineWidth = 2.5; c.strokeStyle = '#fff'; c.stroke();
-    c.fillStyle = '#fff'; c.fillRect(x - 5.5, y + 2, 11, 5);
-    c.strokeStyle = '#fff'; c.lineWidth = 1.5; c.lineCap = 'round'; c.beginPath();
-    for (const dx of [-3.5, 0, 3.5]) { c.moveTo(x + dx, y - 0.5); c.quadraticCurveTo(x + dx - 2, y - 2.5, x + dx, y - 4.5); c.quadraticCurveTo(x + dx + 2, y - 6.5, x + dx, y - 8); }
-    c.stroke();
-    if (z >= 11.5) teksti(k.n, x, y + 14, 12, '#5f3310'); c.restore();
+    const x = X(k.lo), y = Y(k.la); if (!sisalla(x, y)) continue;
+    if (k3) k3.push({ x, y, f: saunaIkoni, d: k, nimi: z >= 11.5 ? k.n : '', vari: '#5f3310', laji: 'sauna', r: 24 });
+    else { pysty(c, x, y); saunaIkoni(c, x, y); if (z >= 11.5) teksti(k.n, x, y + 14, 12, '#5f3310'); c.restore(); }
     lisa.osumat.push({ x, y, r: 24, laji: 'sauna', d: k });
   }
   const ra = T.as.rajoitus && vayla && vayla.rajoitukset;
@@ -1862,6 +2101,7 @@ function piirraLisat(c, X, Y, W, H, z) {
   if (T.as.ais && lisa.ais) for (const a of lisa.ais) {
     const x = X(a.lon), y = Y(a.lat); if (!sisalla(x, y)) continue;
     const liikkuu = a.sog > 0.5, suunta = a.hdg != null && a.hdg < 360 ? a.hdg : a.cog < 360 ? a.cog : 0;
+    if (k3) { const ti = lisa.aisNimet && lisa.aisNimet.get(a.mmsi); lisa.alukset3d.push({ x, y, a, suunta, tieto: ti, nimi: z >= 11 && ti && ti.name ? ti.name.trim() : '' }); aisNakyvissa++; lisa.osumat.push({ x, y, r: 26, laji: 'ais', d: a }); continue; }
     c.save(); c.translate(x, y); c.rotate(suunta * RAD); c.beginPath();
     if (liikkuu) { c.moveTo(0, -15); c.lineTo(8.5, 10); c.lineTo(0, 5.5); c.lineTo(-8.5, 10); c.closePath(); } else c.arc(0, 0, 6.5, 0, 7);
     c.lineJoin = 'round'; c.lineWidth = 5; c.strokeStyle = '#fff'; c.stroke(); c.fillStyle = liikkuu ? '#a31fd1' : '#455a64'; c.fill(); c.lineWidth = 1.2; c.strokeStyle = '#2a0a3a'; c.stroke(); c.restore(); aisNakyvissa++;
