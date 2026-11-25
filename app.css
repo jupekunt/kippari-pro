@@ -198,6 +198,12 @@ input[type=checkbox],input[type=radio]{flex:none;min-width:22px;min-height:22px}
 .kokok{isolation:isolate}
 .kokok>*{z-index:5}
 .kokok>canvas,.kokok>.kvene3d{z-index:auto}
+/* Kallistetun kartan alaosa (veneen takana oleva kaistale) tulee kolmiulotteisessa tilassa katsojaa kohti. Safari piirtää sen silloin samassa syvyydessä
+   olevien palkkien, veneen ja merkkien eteen. Siksi kaikki kartan päällä oleva nostetaan syvyyssuunnassa kartan eteen: ilman perspektiiviä nosto ei muuta kuvaa. */
+.kokok.k3d>*{translate:0 0 400px}
+.kokok.k3d>.kmerkit3d{translate:0 0 300px}
+.kokok.k3d>.kvene3d{translate:0 0 320px}
+.kokok.k3d>#lKartta{translate:none}
 .kokok.k3d .kmittari,.kokok.k3d .ktuuli,.kokok.k3d .ktila,.kokok.k3d .ktutka,.kokok.k3d .kreitti{background:#fff}
 .kvene3d svg{display:block;width:100%;height:100%;overflow:visible;transform-origin:50% 75%;animation:keinu 3.2s ease-in-out infinite}
 .kvene3d.himmea svg{animation:none}
