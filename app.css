@@ -194,6 +194,10 @@ input[type=checkbox],input[type=radio]{flex:none;min-width:22px;min-height:22px}
 .kvene3d[hidden]{display:none}
 .kmerkit3d{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
 .kmerkit3d[hidden]{display:none}
+/* Kartan päällä olevat mittarit, palkit ja napit aina 3D-merkkien, veneen ja sateen yläpuolelle; 3D-tilassa mittari ja tuulipalkki läpinäkymättömiksi, etteivät merkit kuulla läpi */
+.kokok>*{z-index:5}
+.kokok>canvas,.kokok>.kvene3d{z-index:auto}
+.kokok.k3d .kmittari,.kokok.k3d .ktuuli,.kokok.k3d .ktila,.kokok.k3d .ktutka,.kokok.k3d .kreitti{background:#fff}
 .kvene3d svg{display:block;width:100%;height:100%;overflow:visible;transform-origin:50% 75%;animation:keinu 3.2s ease-in-out infinite}
 .kvene3d.himmea svg{animation:none}
 .kvene3d .vana{display:none;transform-origin:40px 86px;transform:scaleY(var(--vp,1))}
