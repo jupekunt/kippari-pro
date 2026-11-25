@@ -972,6 +972,8 @@ function liveKartta() {
   if (!kLive || kLive.cv !== cv) { kLive = new Kartta(cv, lv); kLive.onMuutos = seuraaMerkki; lk = null; }
   // Reittipalkin korkeus vaihtelee (kapealla puhelimella teksti rivittyy): korkeus viedään tyyleille (--rk), jotta tilamerkki ja muut palkit asettuvat sen yläpuolelle
   for (const rp of document.querySelectorAll('.kokok > .kreitti')) if (!rp._ro && window.ResizeObserver) { rp._ro = new ResizeObserver(() => { if (rp.isConnected && rp.offsetHeight) rp.parentElement.style.setProperty('--rk', rp.offsetHeight + 'px'); }); rp._ro.observe(rp); }
+  // Sama kartan lähdemerkinnälle ruudun alareunassa (--tk): kapealla ruudulla se rivittyy, ja palkit nousevat sen yläpuolelle
+  { const te = $('#kTekija'); if (te && !te._ro && window.ResizeObserver) { te._ro = new ResizeObserver(() => { const k = $('.kokok'); if (te.isConnected && te.offsetHeight && k) k.style.setProperty('--tk', te.offsetHeight + 'px'); }); te._ro.observe(te); } }
   kLive.reitti = reitti && !omaR ? reitti.r.pisteet : null; kLive.lisat = piirraLisat; kLive.suuntaviiva = T.as.suuntaviiva; kLive.reittiKohta = !omaR && seurPaalla() && seur.aktiivinen ? seur.k : null; kallistusAseta(); if (!liike.a) kLive.kierto = kiertoNyt();      // omaa reittiä muokatessa näytetään vain muokattava reitti
   const f = gps.viime, paalla = watchId != null || tal.tila === 'matka';
   if (!f || !paalla) {            // ei sijaintia juuri nyt: viimeisin tunnettu paikka, muuten Suomenlahti
