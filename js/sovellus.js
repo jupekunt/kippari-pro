@@ -860,8 +860,66 @@ async function lataaTarkat(b, maxZ, edistys, tila) {
   }
   return yht;
 }
+// Karttapaketti (.kpak): tietokoneella valmiiksi ladattu alue (karttapalat, väylätiedot ja syvyyskäyrät) yhdessä tiedostossa.
+// Rakenne: "KPAK1\n", tietueet peräkkäin, hakemisto (JSON) ja 40 merkin loppumerkintä "KPAK1 <hakemiston alku> <pituus>".
+// Tiedostoa luetaan paloina (File.slice), joten satojen megatavujen paketti ei tarvitse yhtä paljon muistia.
+const KPAK_TAULUKOT = Object.assign(Object.create(null), { Float32Array, Float64Array, Int8Array, Uint8Array, Int16Array, Uint16Array, Int32Array, Uint32Array });
+async function kpakLue(f) {
+  if (f.size < 60 || await f.slice(0, 6).text() !== 'KPAK1\n') throw new Error('Tiedosto ei ole Kippari Pron karttapaketti (.kpak).');
+  const m = /^KPAK1 (\d+) (\d+) *$/.exec(await f.slice(f.size - 40).text());
+  if (!m || +m[1] < 6 || +m[1] + +m[2] > f.size - 40) throw new Error('Karttapaketti on vajaa – tiedoston siirto on luultavasti katkennut.');
+  let h = null; try { h = JSON.parse(await f.slice(+m[1], +m[1] + +m[2]).text()); } catch (x) { }
+  if (!h || !Array.isArray(h.laatat) || !Array.isArray(h.kv)) throw new Error('Karttapaketin sisällysluettelo ei aukea.');
+  h.loppu = +m[1]; return h;
+}
+// Tuo paketin sisällön laitteen tallennukseen. edistys(tehty, kaikki, lisa). Palauttaa { palat, ohi, tavut, tiedot: [tekstit] }.
+// Paketista hyväksytään vain karttapalat sekä alueiden väylätiedot ja syvyyskäyrät – muihin tallennuksiin (matkat, asetukset) se ei voi kirjoittaa.
+async function kpakTuo(f, h, edistys, tila) {
+  const tulos = { palat: 0, ohi: 0, tavut: 0, tiedot: [] }, L = h.laatat, N = L.length, sallitut = new Map(), syvMuuttui = [];
+  for (const a of ALUEET) { sallitut.set(a.avain, [a, 'v']); sallitut.set('syvyys-' + a.id, [a, 's']); }
+  const taulukko = (nimi, v) => {
+    if (!(v && typeof v.__t === 'string' && typeof v.b64 === 'string')) return v;
+    const C = KPAK_TAULUKOT[v.__t]; if (!C) throw new Error('tuntematon tietotyyppi');
+    const b = atob(v.b64), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return new C(u.buffer);
+  };
+  for (const r of h.kv) {
+    if (tila.peru) break;
+    const [k, a, n] = r, s = sallitut.get(k); if (!s || !(a >= 6 && n > 0 && a + n <= h.loppu)) continue;
+    const nimi = (s[1] === 'v' ? 'väylätiedot' : 'syvyyskäyrät') + ' (' + s[0].nimi + ')';
+    edistys(0, N, ' · ' + nimi);
+    let o = null; try { o = JSON.parse(await f.slice(a, a + n).text(), taulukko); } catch (x) { }
+    if (!o || !(s[1] === 'v' ? Array.isArray(o.linjat) && Array.isArray(o.merkit) : o.p && o.alku && o.s)) { tulos.tiedot.push(nimi + ' eivät auenneet'); continue; }
+    let ed = null; try { ed = await DB.get('kv', k); } catch (x) { }
+    // laitteella olevia uudempia tietoja ei korvata paketin vanhemmilla
+    if (ed && ed.haettu >= o.haettu) { tulos.tiedot.push(nimi + ': laitteella on jo yhtä uudet (' + pvm(ed.haettu) + ')'); continue; }
+    await DB.put('kv', o, k); tulos.tiedot.push(nimi + ' tuotu (haettu ' + pvm(o.haettu) + ')');
+    if (s[1] === 's') syvMuuttui.push(s[0].id);
+  }
+  // Karttapalat erissä: yksi tiedoston luku ja yksi tallennustapahtuma erää kohti
+  const kelpo = /^([\w|.\-]+\/)?\d+\/\d+\/\d+$/, mt = () => ' · ' + (tulos.tavut < 10485760 ? (tulos.tavut / 1048576).toFixed(1).replace('.', ',') : Math.round(tulos.tavut / 1048576)) + ' Mt';
+  for (let i = 0; i < N && !tila.peru;) {
+    const a0 = L[i][1]; let j = i, a1 = a0;
+    while (j < N && j - i < 400 && L[j][1] >= a1 && L[j][1] + L[j][2] - a0 <= 4194304) { a1 = L[j][1] + L[j][2]; j++; }
+    if (j === i) { j = i + 1; a1 = a0 + L[i][2]; }
+    if (!(a0 >= 6 && a1 > a0 && a1 <= h.loppu && a1 - a0 <= 33554432)) { tulos.ohi += j - i; i = j; continue; }
+    const buf = await f.slice(a0, a1).arrayBuffer(); let palat = 0, ohi = 0, tavut = 0;
+    try {
+      await DB.tx('laatat', 'readwrite', o => {
+        for (let q = i; q < j; q++) {
+          const [k, a, n] = L[q];
+          if (typeof k === 'string' && kelpo.test(k) && n > 0) { o.put(new Blob([buf.slice(a - a0, a - a0 + n)], { type: 'image/png' }), k); palat++; tavut += n; } else ohi++;
+        }
+      });
+    } catch (x) { if (x && x.name === 'QuotaExceededError') { tila.taynna = true; break; } throw x; }
+    tulos.palat += palat; tulos.ohi += ohi; tulos.tavut += tavut; i = j;
+    edistys(i, N, mt());
+  }
+  for (const [k, m] of muisti) if (m.ei || m.eiDb) muisti.delete(k);      // aiemmin puuttuneet palat haetaan nyt laitteelta
+  vayla = null; verkko = null; await vaylatMuistiin();
+  if (syvMuuttui.length) { for (const id of syvMuuttui) delete syv.osat[id]; syv.ladattu = false; if (T.as.syvyys) await syvyysMuistiin(); }
+  return tulos;
+}
 async function lataaAlueKokoIkkuna(alue) {
-  if (!navigator.onLine) { ilmoita('Lataus vaatii verkkoyhteyden.'); return; }
   // K = ladattava merikartta: valittu karttapohja, tai vanha merikartta, jos valittuna on maastokartta
   const K = alueKartta(alue), ar = K.arvio || { pala: LAATTAKOKO, osuus: 0.33, k14: 0.018, k15: 0.009 };
   const lista = laattaLista(alue.b, 8, 13), mt = Math.round(lista.length * ar.pala / 10) * 10, d = $('#dlg'), tila = { peru: false, K };
@@ -883,13 +941,46 @@ async function lataaAlueKokoIkkuna(alue) {
     '<div class="pieni">Perustarkkuudella kartta ei tarkennu ilman verkkoa, kun zoomaat lähelle. Tarkat tasot ladataan vain sieltä, missä kartassa on sisältöä; avomeri jää perustarkkuuteen. Tarkemman tason voi ladata myöhemmin samasta napista – jo ladatut palat ohitetaan.</div>' +
     '<div class="pieni">Samalla ladataan alueen väylät, merimerkit ja nopeusrajoitusalueet (noin ' + alue.vaylaMt + ' Mt), jolloin myös reittisuunnittelu, reitin seuranta ja rajoitusvaroitukset toimivat ilman verkkoa.</div>' +
     '<div class="pieni">Käytä Wi-Fiä ja pidä sovellus auki latauksen ajan. Jos lataus keskeytyy, paina samaa nappia uudelleen – jo ladatut palat ohitetaan.</div>' +
+    '<h4>Tuo valmiista tiedostosta</h4><div class="pieni">Jos sinulla on tietokoneella tehty karttapaketti (.kpak) alueesta ' + alue.nimi + ', voit tuoda kartan, väylätiedot ja syvyyskäyrät siitä. Tuonti ei tarvitse verkkoa. Siirrä tiedosto ensin tälle laitteelle ja valitse se napista ”Tuo kpak-tiedostosta”.</div>' +
+    '<input type="file" id="lKpak" hidden>' +
     '<progress id="lEd" value="0" max="1" hidden></progress><div class="pieni" id="lTeksti"></div>' +
-    '<div class="napit"><button type="button" class="nappi" id="lPeru">Sulje</button><button type="button" class="nappi paa" id="lOk">Lataa</button></div></form>';
+    '<div class="napit"><button type="button" class="nappi" id="lPeru">Sulje</button><button type="button" class="nappi" id="lTuo">Tuo kpak-tiedostosta</button><button type="button" class="nappi paa" id="lOk">Lataa</button></div></form>';
   d.querySelector('#lPeru').onclick = () => { tila.peru = true; d.close(); };
+  // Tuonti karttapaketista: valittu tiedosto tarkistetaan ja tuodaan heti
+  const kp = d.querySelector('#lKpak'), lukitse = p => { d.querySelector('#lOk').disabled = p; d.querySelector('#lTuo').disabled = p; d.querySelectorAll('input[name=tark]').forEach(x => x.disabled = p); d.querySelector('#lPeru').textContent = p ? 'Keskeytä' : 'Sulje'; };
+  d.querySelector('#lTuo').onclick = () => { kp.value = ''; kp.click(); };
+  kp.onchange = () => { if (kp.files[0]) tuoKpak(kp.files[0]); };
+  const tuoKpak = async f => {
+    const ed = d.querySelector('#lEd'), tx = d.querySelector('#lTeksti');
+    lukitse(true); tila.peru = false; tila.taynna = false; tx.textContent = 'Luetaan karttapakettia…';
+    try {
+      const h = await kpakLue(f);
+      ed.hidden = false; ed.value = 0;
+      try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (x) { }
+      naytto(true);
+      const r = await kpakTuo(f, h, (k, kaikki, lisa) => { ed.value = kaikki ? k / kaikki : 1; tx.textContent = 'Tuodaan: ' + k + ' / ' + kaikki + ' karttapalaa' + (kaikki ? ' (' + Math.round(k / kaikki * 100) + ' %)' : '') + (lisa || ''); }, tila);
+      window.__kpak = { h: { nimi: h.nimi, alue: h.alue, paloja: h.laatat.length }, r, taynna: !!tila.taynna, peru: !!tila.peru };
+      if (watchId == null) naytto(false);
+      if (!d.contains(tx)) { karttaUudelleen(); return; }      // ikkuna on jo suljettu tai korvattu toisella
+      tx.textContent = (tila.taynna ? 'Laitteen tallennustila loppui kesken. ' : tila.peru ? 'Keskeytetty – valitse sama tiedosto uudelleen, niin tuonti tehdään loppuun. ' : 'Valmis. ') +
+        'Paketti: ' + (h.nimi || f.name) + (h.tehty ? ', tehty ' + pvm(h.tehty) : '') + '. Tuotu ' + r.palat + ' karttapalaa (' + Math.round(r.tavut / 1048576) + ' Mt)' + (r.ohi ? ', ohitettu ' + r.ohi + ' virheellistä' : '') + '. ' +
+        (r.tiedot.length ? r.tiedot.map(t => t.charAt(0).toUpperCase() + t.slice(1)).join('. ') + '. ' : '') +
+        (h.alue && h.alue !== alue.id ? 'Huom: paketti on eri alueelta kuin tämä ikkuna – sen sisältö tuotiin silti. ' : '') +
+        (h.karttaAvain && h.karttaAvain !== laattaAvain(K) ? 'Paketin kartta näkyy, kun karttapohjaksi on valittu sama kartta kuin paketissa. ' : '') +
+        (h.lahteet ? h.lahteet : '');
+    } catch (x) {
+      if (watchId == null) naytto(false);
+      window.__kpak = { virhe: String(x && x.message || x) };
+      if (d.contains(tx)) tx.textContent = 'Tuonti ei onnistunut: ' + (x && x.message || x);
+    }
+    if (d.contains(tx)) { lukitse(false); tila.peru = false; }
+    karttaUudelleen(); paivitaKarttaTila();
+  };
   d.querySelector('#lOk').onclick = async () => {
+    if (!navigator.onLine) { ilmoita('Lataus vaatii verkkoyhteyden.'); return; }
     const ed = d.querySelector('#lEd'), tx = d.querySelector('#lTeksti');
     const maxZ = +((d.querySelector('input[name=tark]:checked') || {}).value || 13);
-    d.querySelector('#lOk').disabled = true; d.querySelectorAll('input[name=tark]').forEach(x => x.disabled = true); d.querySelector('#lPeru').textContent = 'Keskeytä'; ed.hidden = false;
+    lukitse(true); ed.hidden = false;
     try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (x) { }
     tila.tavut = 0; tila.virhe = false;
     naytto(true);
@@ -908,7 +999,7 @@ async function lataaAlueKokoIkkuna(alue) {
     if (!d.contains(tx)) { karttaUudelleen(); return; }      // ikkuna on jo korvattu toisella
     if (rt) { r.ok += rt.ok; r.ennestaan += rt.ennestaan; r.puuttuu += rt.puuttuu; }
     tx.textContent = vt + 'Kartta: ' + (tila.taynna ? 'Puhelimen tallennustila loppui kesken. ' : tila.virhe ? 'Karttapalvelu ei vastaa (useita virheitä peräkkäin), lataus pysäytettiin. Yritä myöhemmin uudelleen samasta napista – jo ladatut palat säilyvät. ' : tila.peru ? 'Keskeytetty – jatka painamalla nappia uudelleen. ' : 'Valmis. ') + 'Ladattu ' + r.ok + ', ennestään tallessa ' + r.ennestaan + (r.puuttuu ? ', ei saatavilla ' + r.puuttuu + ' (ei karttaa alueelta tai yhteys katkesi)' : '') + '.';
-    d.querySelector('#lPeru').textContent = 'Sulje'; d.querySelector('#lOk').disabled = false; d.querySelectorAll('input[name=tark]').forEach(x => x.disabled = false); tila.peru = false; karttaUudelleen(); paivitaKarttaTila();
+    lukitse(false); tila.peru = false; karttaUudelleen(); paivitaKarttaTila();
   };
   d.showModal();
 }
