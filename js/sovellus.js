@@ -765,7 +765,8 @@ function vene3d(k, b, x, y, vW, vH) {
 function merkit3d(k, X, Y, vW, vH, z) {
   const el = $('#kMerkit3d'); if (!el) return;
   const K = k.kall, kyltit = (K && lisa.kyltit) || [], alukset = (K && lisa.alukset3d) || [], merkit = K && vayla && z >= 11.5 ? vayla.merkit : [];
-  if (!K || (!merkit.length && !kyltit.length && !alukset.length)) { el.hidden = true; el.dataset.n = el.dataset.kyltit = el.dataset.alukset = 0; return; }
+  const maali = K && k.reitti && k.reitti.length > 1 ? k.reitti[k.reitti.length - 1] : null;      // reitin määränpää: lippu
+  if (!K || (!merkit.length && !kyltit.length && !alukset.length && !maali)) { el.hidden = true; el.dataset.n = el.dataset.kyltit = el.dataset.alukset = 0; return; }
   const dpr = Math.min(window.devicePixelRatio || 1, 2); el.hidden = false; el.width = K.W * dpr; el.height = K.H * dpr;
   const c = el.getContext('2d'); c.scale(dpr, dpr);
   const a = k.ankkuri(), kr = k.kierto || 0, co = Math.cos(kr), si = Math.sin(kr), sth = Math.sin(K.th), cth = Math.cos(K.th), cw = k.cv.clientWidth / 2, zk = .8 * rajaa(2 ** ((z - 14) * .5), .6, 1.25);
@@ -784,14 +785,17 @@ function merkit3d(k, X, Y, vW, vH, z) {
   for (const p of kl) { const ky = p[4], s = rajaa(p[2], .5, 1.15), d = 34 * s / (cth * p[2]); ky.n = [p[1], p[0], s]; lisa.osumat.push({ x: ky.x - d * si, y: ky.y - d * co, r: ky.r + 6, laji: ky.laji, d: ky.d }); }
   // AIS-alukset kolmiulotteisina hahmoina, keula kulkusuuntaan
   const al = []; for (const u of alukset) { const p = nayttoon(u.x, u.y); if (p) { p.push(null, null, u); al.push(p); } }
-  lista = lista.concat(kl, al); lista.sort((p, q) => p[0] - q[0]);                            // kaukaisimmat ensin, lähimmät päälle
-  for (const [sy, sx, m, mk, ky, alus] of lista) {
+  lista = lista.concat(kl, al);
+  let lippu = 0; if (maali) { const p = nayttoon(X(maali[1]), Y(maali[0])); if (p) { p.push(null, null, null, 1); lista.push(p); lippu = 1; } }
+  lista.sort((p, q) => p[0] - q[0]);                            // kaukaisimmat ensin, lähimmät päälle
+  for (const [sy, sx, m, mk, ky, alus, onLippu] of lista) {
     c.globalAlpha = rajaa((m - .3) / .22, .25, 1);                                        // kaukaisimmat haalistuvat
-    if (alus) { c.globalAlpha = 1; piirraAlus3d(c, sx, sy, m * rajaa(2 ** ((z - 13) * .45), .55, 1.5), alus, kr, cth, sth); }
+    if (onLippu) { c.globalAlpha = 1; piirraLippu3d(c, sx, sy, rajaa(m, .55, 1.2), reitti && reitti.minne && reitti.minne.nimi && !reitti.minne.sijainti ? reitti.minne.nimi : ''); }
+    else if (alus) { c.globalAlpha = 1; piirraAlus3d(c, sx, sy, m * rajaa(2 ** ((z - 13) * .45), .55, 1.5), alus, kr, cth, sth); }
     else if (mk) piirraMerkki3d(c, sx, sy, m * zk, mk); else piirraKyltti3d(c, sx, sy, rajaa(m, .5, 1.15), ky);
   }
   tyhjennaPaneelit(c, el);
-  el.dataset.n = lista.length - kl.length - al.length; el.dataset.kyltit = kl.length; el.dataset.alukset = al.length;
+  el.dataset.n = lista.length - kl.length - al.length - lippu; el.dataset.lippu = lippu; el.dataset.kyltit = kl.length; el.dataset.alukset = al.length;
 }
 // Tyhjentää 3D-kerroksesta (merkit, sade) kartan päällä olevien mittarien, palkkien ja nappien alueet.
 // iPadin Safari näytti kerroksen niiden läpi piirtojärjestyksestä huolimatta, joten kerrokseen ei jätetä niiden kohdalle mitään.
@@ -860,6 +864,22 @@ function piirraAlus3d(c, x, y, s, u, kr, cth, sth) {
     c.beginPath(); c.moveTo(j[0], j[1]); c.lineTo(h[0], h[1]); c.lineWidth = 1.3; c.stroke(); }
   c.restore();
   if (u.nimi && s > .5) { c.save(); c.font = '600 ' + Math.round(10.5 + 2 * Math.min(s, 1)) + 'px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top'; c.lineJoin = 'round'; c.lineWidth = 3.5; c.strokeStyle = 'rgba(255,255,255,.92)'; const ty = y + (L / 2 * cth + 5) * s; c.strokeText(u.nimi, x, ty); c.fillStyle = '#4b1d8f'; c.fillText(u.nimi, x, ty); c.restore(); }
+}
+// Reitin määränpää 3D-näkymässä: tolppa ja ruutulippu, joka näkyy kauas; määränpään nimi tolpan juurella, kun se on lähellä.
+function piirraLippu3d(c, x, y, s, nimi) {
+  c.save(); c.translate(x, y); c.scale(s, s); c.lineJoin = 'round';
+  c.fillStyle = 'rgba(0,0,0,.24)'; c.beginPath(); c.ellipse(3, 0, 9, 3.2, 0, 0, 7); c.fill();
+  c.fillStyle = '#fff'; c.fillRect(-2.6, -58, 5.2, 58); c.fillStyle = '#12222f'; c.fillRect(-1.4, -58, 2.8, 58);      // tolppa
+  // liehuva ruutulippu: 5 × 4 ruutua, sarakkeet hieman eri korkeudella
+  const R = 6, aalto = [0, 1.6, 2.2, 1.2, -.4, -1.6];
+  for (let i = 0; i < 5; i++) for (let j = 0; j < 4; j++) {
+    const x0 = 1.4 + i * R, x1 = x0 + R, ya = -57 + j * R + aalto[i], yb = -57 + j * R + aalto[i + 1];
+    c.beginPath(); c.moveTo(x0, ya); c.lineTo(x1, yb); c.lineTo(x1, yb + R); c.lineTo(x0, ya + R); c.closePath(); c.fillStyle = (i + j) % 2 ? '#12222f' : '#fff'; c.fill();
+  }
+  c.beginPath(); c.moveTo(1.4, -57); for (let i = 1; i <= 5; i++) c.lineTo(1.4 + i * R, -57 + aalto[i]); for (let i = 5; i >= 0; i--) c.lineTo(1.4 + i * R, -57 + 4 * R + aalto[i]); c.closePath(); c.lineWidth = 1.4; c.strokeStyle = '#12222f'; c.stroke();
+  c.beginPath(); c.arc(0, -59.5, 2.8, 0, 7); c.fillStyle = '#ffd43b'; c.fill(); c.lineWidth = 1; c.stroke();      // tolpan nuppi
+  c.restore();
+  if (nimi && s > .62) { c.save(); c.font = '700 ' + Math.round(11 + 2 * s) + 'px system-ui,sans-serif'; c.textAlign = 'center'; c.textBaseline = 'top'; c.lineJoin = 'round'; c.lineWidth = 3.5; c.strokeStyle = 'rgba(255,255,255,.94)'; c.strokeText(nimi, x, y + 12 * s); c.fillStyle = '#1565c0'; c.fillText(nimi, x, y + 12 * s); c.restore(); }
 }
 function piirraKyltti3d(c, x, y, s, ky) {
   c.save(); c.translate(x, y); c.scale(s, s);
