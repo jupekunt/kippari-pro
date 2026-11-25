@@ -2,7 +2,8 @@
 'use strict';
 const $ = s => document.querySelector(s);
 const e = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const n = (x, d = 1) => x == null || isNaN(x) ? '–' : Number(x).toLocaleString('fi-FI', { minimumFractionDigits: d, maximumFractionDigits: d });
+// Luku suomalaisittain d desimaalilla. Nollaksi pyöristyvä negatiivinen luku näytetään ilman miinusmerkkiä (ei "−0").
+const n = (x, d = 1) => x == null || isNaN(x) ? '–' : Number(x).toLocaleString('fi-FI', { minimumFractionDigits: d, maximumFractionDigits: d }).replace(/^[−-](0(?:,0+)?)$/, '$1');
 const luku = s => { const v = parseFloat(String(s).replace(/\s/g, '').replace(',', '.')); return isNaN(v) ? null : v; };
 const pad = x => String(x).padStart(2, '0');
 const pvm = t => new Date(t).toLocaleDateString('fi-FI');
