@@ -756,7 +756,26 @@ function merkit3d(k, X, Y, vW, vH, z) {
     if (alus) { c.globalAlpha = 1; piirraAlus3d(c, sx, sy, m * rajaa(2 ** ((z - 13) * .45), .55, 1.5), alus, kr, cth, sth); }
     else if (mk) piirraMerkki3d(c, sx, sy, m * zk, mk); else piirraKyltti3d(c, sx, sy, rajaa(m, .5, 1.15), ky);
   }
+  tyhjennaPaneelit(c, el);
   el.dataset.n = lista.length - kl.length - al.length; el.dataset.kyltit = kl.length; el.dataset.alukset = al.length;
+}
+// Tyhjentää 3D-kerroksesta (merkit, sade) kartan päällä olevien mittarien, palkkien ja nappien alueet.
+// iPadin Safari näytti kerroksen niiden läpi piirtojärjestyksestä huolimatta, joten kerrokseen ei jätetä niiden kohdalle mitään.
+// c = kerroksen piirtoyhteys CSS-pikseleissä, el = kerroksen canvas. Läpinäkyvät kehykset (esim. nappirivi) käydään läpi lapsi kerrallaan.
+function tyhjennaPaneelit(c, el) {
+  const emo = el.parentElement; if (!emo) return; const r0 = emo.getBoundingClientRect();
+  c.save(); c.setTransform(c.getTransform().a, 0, 0, c.getTransform().d, 0, 0); c.globalAlpha = 1; c.globalCompositeOperation = 'destination-out'; c.fillStyle = '#000';
+  const kay = e => {
+    for (const x of e.children) {
+      if (x.tagName === 'CANVAS' || x.hidden || x.classList.contains('kvene3d')) continue;
+      const s = getComputedStyle(x); if (s.display === 'none' || s.visibility === 'hidden') continue;
+      if (/^(transparent|rgba\(0, 0, 0, 0\))$/.test(s.backgroundColor)) { kay(x); continue; }
+      const r = x.getBoundingClientRect(); if (!r.width || !r.height) continue;
+      const pr = s.borderTopLeftRadius || '', sade = Math.min(/%/.test(pr) ? Math.min(r.width, r.height) / 2 : parseFloat(pr) || 0, r.width / 2, r.height / 2) + 2;
+      c.beginPath(); if (c.roundRect) c.roundRect(r.left - r0.left - 2, r.top - r0.top - 2, r.width + 4, r.height + 4, sade); else c.rect(r.left - r0.left - 2, r.top - r0.top - 2, r.width + 4, r.height + 4); c.fill();
+    }
+  };
+  kay(emo); c.restore();
 }
 // Pystykyltti: tolppa ja sen päässä kohteen kuvake; nimi tolpan juurella, kun kohde on lähellä.
 // AIS-alus 3D-näkymässä: runko, kansi ja kansirakenne nostetaan veden pinnasta pystyyn (särmiö), jolloin alus näyttää oikealta mistä suunnasta tahansa.
@@ -861,6 +880,7 @@ function saa3dAskel() {
     for (let i = 0; i < N / 2; i++) { const x = Math.random() * (K.W + 60) - 30, y = Math.random() * K.H; c.moveTo(x, y); c.lineTo(x + kallistus * L, y + L); }
     c.stroke();
   }
+  tyhjennaPaneelit(c, el);
   el.dataset.sade = saa3d.sade;
 }
 function piirraMerkki3d(c, x, y, s, mk) {
