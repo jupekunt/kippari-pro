@@ -103,7 +103,7 @@ a.nappi{text-decoration:none;color:inherit}
 .kytkin .pieni{font-weight:400}
 .kais{position:absolute;left:10px;bottom:68px;border:0;border-radius:16px;padding:6px 12px;background:rgba(255,255,255,.93);color:#4b1d8f;font-size:13px;font-weight:600;box-shadow:0 1px 6px rgba(0,0,0,.3);cursor:pointer}
 .kais[hidden]{display:none}
-.onreitti .kais{bottom:134px}
+.onreitti .kais{bottom:calc(76px + var(--rk,58px))}
 .ktila{position:absolute;left:10px;bottom:26px;max-width:calc(100% - 20px);border:0;border-radius:20px;padding:8px 14px 8px 30px;background:rgba(255,255,255,.93);color:#12222f;font-size:14px;font-weight:600;box-shadow:0 1px 6px rgba(0,0,0,.3);cursor:pointer}
 .ktila::before{content:"";position:absolute;left:12px;top:50%;width:10px;height:10px;margin-top:-5px;border-radius:50%;background:#8a98a3}
 .ktila.odota::before{background:#e39a1f}
@@ -115,7 +115,7 @@ a.nappi{text-decoration:none;color:inherit}
 .kreitti button{width:40px;height:40px;flex:none;border-radius:50%;border:1px solid #d9e1e7;background:#fff;color:#12222f;font-size:17px;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0}
 .kreitti svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .kreitti button.on{background:#0b7a8f;border-color:#0b7a8f;color:#fff}
-.onreitti .ktila{bottom:92px}
+.onreitti .ktila{bottom:calc(34px + var(--rk,58px))}
 .kreitti.sivussa{background:#fff1f0;box-shadow:0 0 0 2px #e01b24,0 1px 6px rgba(0,0,0,.3)}
 .kreitti.sivussa .v b{color:#c0121c}
 /* ilmoitus ei saa peittää reittipalkkia eikä tallennuksen tilaa */
@@ -187,8 +187,8 @@ input[type=checkbox],input[type=radio]{flex:none;min-width:22px;min-height:22px}
 .ktutka span{color:#42525f}
 .ktutka.on{background:#0b5c8f}.ktutka.on b,.ktutka.on span{color:#fff}
 .kais:not([hidden])+.ktutka{bottom:106px}
-.onreitti .ktutka{bottom:134px}
-.onreitti .kais:not([hidden])+.ktutka{bottom:172px}
+.onreitti .ktutka{bottom:calc(76px + var(--rk,58px))}
+.onreitti .kais:not([hidden])+.ktutka{bottom:calc(114px + var(--rk,58px))}
 /* 3D-näkymän vene: kolmiulotteisen näköinen kuva kallistetun kartan päällä, paikka ja koko asetetaan koodista */
 .kvene3d{position:absolute;left:0;top:0;width:45px;height:56px;pointer-events:none;transform-origin:50% 62%;filter:drop-shadow(0 2px 2px rgba(0,0,0,.28))}
 .kvene3d[hidden]{display:none}
