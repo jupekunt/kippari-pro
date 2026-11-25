@@ -465,7 +465,7 @@ function haeLaatta(K, z, x, y, lataa) {
   if (!K.talteen) { if (vainDb) { m.eiDb = true; return null; } if (navigator.onLine) valmis(K.url(z, x, y)); else m.ei = true; return m.ei ? null : undefined; }
   (async () => {
     let b = null;
-    if (!dbKatsottu) try { b = await DB.get('laatat', avain); } catch (x) { }
+    if (!dbKatsottu) try { b = await laattaLue(avain); } catch (x) { }
     if (!b && vainDb) { m.eiDb = true; laattaSaapui(); return; }
     let tilapainen = false;
     if (!b && navigator.onLine) { b = await haeKuva(K.url(z, x, y)); if (b) DB.put('laatat', b, avain).catch(() => { }); else tilapainen = b === undefined; }
@@ -477,6 +477,19 @@ function haeLaatta(K, z, x, y, lataa) {
     }
   })();
   return undefined;
+}
+// Karttapalojen luku laitteen tallennuksesta niputettuna: samalla hetkellä pyydetyt palat luetaan yhdessä tietokantatapahtumassa.
+// Yksi kuva tarvitsee kymmeniä tai satoja paloja, ja etenkin Safarissa jokainen erillinen tapahtuma on hidas.
+const lukuJono = new Map(); let lukuAjastin = 0;
+function laattaLue(avain) {
+  return new Promise(ok => { const j = lukuJono.get(avain); if (j) j.push(ok); else lukuJono.set(avain, [ok]); if (!lukuAjastin) lukuAjastin = setTimeout(lukuAja, 0); });
+}
+function lukuAja() {
+  lukuAjastin = 0; const era = [...lukuJono]; lukuJono.clear(); if (!era.length) return;
+  const tyhjat = () => { for (const [, f] of era) for (const ok of f) ok(null); };      // jo vastatun lupauksen uusi vastaus ei tee mitään
+  let o; try { const t = DB.db.transaction('laatat', 'readonly'); t.onabort = tyhjat; o = t.objectStore('laatat'); } catch (x) { tyhjat(); return; }
+  lukuAja.erat = (lukuAja.erat || 0) + 1; lukuAja.palat = (lukuAja.palat || 0) + era.length;
+  for (const [k, f] of era) { const q = o.get(k); q.onsuccess = () => { for (const ok of f) ok(q.result || null); }; q.onerror = e => { e.preventDefault(); for (const ok of f) ok(null); }; }
 }
 // Karttapalan haku verkosta. Palauttaa kuvan, null (palaa ei ole) tai undefined (tilapäinen virhe).
 // Karttapalvelu vastaa ruuhkassa satunnaisesti virheellä 500: palvelinvirhe yritetään muutaman kerran uudelleen.
@@ -616,7 +629,25 @@ class Kartta {
       if (tx < 0 || ty < 0 || tx >= n || ty >= n) continue;
       const dx = tx * L - ox, dy = ty * L - oy;
       // käännetyssä tai kallistetussa kartassa piirtoalue on neliö: palat, jotka jäävät piirtoalustan ulkopuolelle, jätetään hakematta
-      if (rajaus) { const qx = dx + L / 2 - W / 2, qy = dy + L / 2 - H / 2, px = ax + qx * co - qy * si, py = ay + qx * si + qy * co; if (px < -L || py < -L || px > Wr + L || py > Hr + L) continue; }
+      let kauko = 0;
+      if (rajaus) {
+        const qx = dx + L / 2 - W / 2, qy = dy + L / 2 - H / 2, px = ax + qx * co - qy * si, py = ay + qx * si + qy * co; if (px < -L || py < -L || px > Wr + L || py > Hr + L) continue;
+        // 3D-näkymässä kaukana oleva alue näkyy ruudulla pienenä: se piirretään yhtä tai kahta tasoa karkeammista paloista (neljäsosa tai kuudestoistaosa lukuja)
+        if (this.kall) {
+          const Q = this.kall, mm = Q.P / (Q.P + (ay - py) * Math.sin(Q.th)), sx = Q.bx + (px - Wr / 2) * mm, sy = Q.by - (ay - py) * Math.cos(Q.th) * mm, vara = L * mm + 30;
+          // kallistettu alusta on ruutua paljon leveämpi: pala, joka jää ruudun ulkopuolelle, jätetään lukematta kokonaan
+          if (!(mm > 0) || sx < -vara || sx > Q.W + vara || sy < -vara || sy > Q.H + vara) continue;
+          kauko = mm < .42 ? 2 : mm < .62 ? 1 : 0;
+        }
+      }
+      if (kauko) {
+        for (let d = kauko; d <= 6 && zi - d >= 3; d++) {
+          const p = haeLaatta(K, zi - d, tx >> d, ty >> d, d === kauko ? true : 'db');
+          if (p) { const k = 256 / 2 ** d; c.drawImage(p, (tx - ((tx >> d) << d)) * k, (ty - ((ty >> d) << d)) * k, k, k, dx, dy, L + .6, L + .6); piirretty++; break; }
+          if (p === undefined && d > kauko) break;
+        }
+        continue;
+      }
       const im = haeLaatta(K, zi, tx, ty);
       if (im) { c.drawImage(im, dx, dy, L + .6, L + .6); piirretty++; }
       // Pala puuttuu tai on vielä tulossa: näytetään karkeampi taso suurennettuna, jos sellainen on.
