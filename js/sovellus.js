@@ -901,8 +901,10 @@ function kallistusAseta() {
   if (!T.as.kartta3d) { if (kLive.kall) { kLive.kall = null; cv.style.cssText = ''; p.style.perspective = p.style.perspectiveOrigin = ''; p.classList.remove('k3d'); } return; }
   const W = p.clientWidth, H = p.clientHeight; if (!W || (kLive.kall && kLive.kall.W === W && kLive.kall.H === H)) return;
   const P = Math.round(1.15 * H), by = Math.round(0.74 * H), ala = Math.round(0.3 * H), dmax = Math.round(2.8 * H), cw = Math.round(2.72 * W), ch = dmax + ala;
-  p.style.perspective = P + 'px'; p.style.perspectiveOrigin = '50% ' + by + 'px'; p.classList.add('k3d');
-  Object.assign(cv.style, { position: 'absolute', left: (W - cw) / 2 + 'px', top: by - dmax + 'px', width: cw + 'px', height: ch + 'px', transformOrigin: '50% ' + dmax + 'px', transform: 'rotateX(45deg)' });
+  // Perspektiivi annetaan kartan omassa muunnoksessa (ei emoelementin perspective-ominaisuutena): katoamispiste on muunnoksen keskipiste eli veneen kohta,
+  // joten kuva on sama, mutta merkit, mittarit ja napit eivät joudu samaan kolmiulotteiseen tilaan (iPadin Safari piirsi ne muuten väärässä järjestyksessä).
+  p.style.perspective = p.style.perspectiveOrigin = ''; p.classList.add('k3d');
+  Object.assign(cv.style, { position: 'absolute', left: (W - cw) / 2 + 'px', top: by - dmax + 'px', width: cw + 'px', height: ch + 'px', transformOrigin: '50% ' + dmax + 'px', transform: 'perspective(' + P + 'px) rotateX(45deg)' });
   kLive.kall = { W, H, P, th: 45 * RAD, bx: W / 2, by, ala, dmax };
 }
 function karttaUudelleen() {
