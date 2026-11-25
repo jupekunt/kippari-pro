@@ -634,11 +634,14 @@ class Kartta {
     const X = lon => mx(lon, v.z) - ox, Y = lat => my(lat, v.z) - oy, pts = this.pts;
     const piste = (p, vari) => { c.beginPath(); c.arc(X(p[2]), Y(p[1]), 6, 0, 7); c.fillStyle = vari; c.fill(); c.lineWidth = 2.5; c.strokeStyle = '#fff'; c.stroke(); };
     c.lineJoin = c.lineCap = 'round';
+    // 3D-näkymän väyläkaistat piirretään ennen reittiä, jotta reitti, kuljettu jälki ja muut merkinnät jäävät niiden päälle
+    if (this === kLive && this.kall) piirraVaylat3d(c, X, Y, W, H, v.z);
     // Suunniteltu reitti: sininen väylää pitkin, oranssi katkoviiva väylän ulkopuolella.
     const R = this.reitti;
     if (R && R.length > 1) {
       const veda = (ulkona, w, vari, katko) => { c.setLineDash(katko); c.lineWidth = w; c.strokeStyle = vari; c.beginPath(); for (let i = 1; i < R.length; i++) { if ((R[i][2] < 0) !== ulkona) continue; c.moveTo(X(R[i - 1][1]), Y(R[i - 1][0])); c.lineTo(X(R[i][1]), Y(R[i][0])); } c.stroke(); };
-      veda(false, 8, '#fff', []); veda(true, 7, '#fff', []); veda(false, 4.5, '#1565c0', []); veda(true, 4, '#e8590c', [1, 9]); c.setLineDash([]);
+      const lw = this.kall ? 1.7 : 1;      // 3D-näkymässä reitti leveämpänä, jotta se erottuu väyläkaistoista
+      veda(false, 8 * lw, '#fff', []); veda(true, 7 * lw, '#fff', []); veda(false, 4.5 * lw, '#1565c0', []); veda(true, 4 * lw, '#e8590c', [1, 9 * lw]); c.setLineDash([]);
       // Reitin seuranta: jo ajettu osuus harmaana, seuraava käännös keltaisella renkaalla ja sivussa ollessa viiva veneestä reitille.
       const q = this.reittiKohta;
       if (q && q.i < R.length) {
@@ -2039,7 +2042,8 @@ function piirraVaylat3d(c, X, Y, W, H, z) {
   const lev = rajaa(9 * 2 ** (z - 13), 6, 30), varit = ['#0b3d91', '#1976d2', '#0ea5b7', '#e01b24'];
   c.save(); c.lineJoin = c.lineCap = 'round';
   polut.forEach((p, i) => { c.globalAlpha = i === 3 ? .16 : .24; c.lineWidth = lev; c.strokeStyle = varit[i]; c.stroke(p); });      // kaista
-  polut.forEach((p, i) => { c.globalAlpha = .85; c.lineWidth = 4.4; c.strokeStyle = '#fff'; c.stroke(p); c.globalAlpha = 1; c.lineWidth = 2.2; c.strokeStyle = varit[i]; c.setLineDash(i === 3 ? [7, 7] : []); c.stroke(p); c.setLineDash([]); });      // keskiviiva
+  const him = !!(kLive && kLive.reitti);      // reitin ollessa päällä kaistojen keskiviivat himmeämpinä ja kapeampina, jotta reitti erottuu
+  polut.forEach((p, i) => { c.globalAlpha = him ? .4 : .85; c.lineWidth = him ? 3 : 4.4; c.strokeStyle = '#fff'; c.stroke(p); c.globalAlpha = him ? .55 : 1; c.lineWidth = him ? 1.4 : 2.2; c.strokeStyle = varit[i]; c.setLineDash(i === 3 ? [7, 7] : []); c.stroke(p); c.setLineDash([]); });      // keskiviiva
   c.restore(); c.canvas.dataset.vaylat3d = n;
 }
 // Kohteiden kuvakkeet (ympyrä ja symboli) kohtaan x, y: samat litteässä kartassa ja 3D-näkymän pystykylteissä.
@@ -2068,7 +2072,6 @@ function saunaIkoni(c, x, y) {
 function piirraLisat(c, X, Y, W, H, z) {
   lisa.osumat = [];
   const k3 = lisa.kyltit = kLive && kLive.kall && c.canvas === kLive.cv ? [] : null; lisa.alukset3d = k3 ? [] : null;      // 3D-näkymän pystykyltit kerätään tähän
-  if (k3) piirraVaylat3d(c, X, Y, W, H, z);
   piirraTutka(c, X, Y, W, H);
   piirraNorjaVaylat(c, X, Y, W, H, z);
   piirraSyvyys(c, X, Y, W, H, z);
