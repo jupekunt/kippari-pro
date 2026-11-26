@@ -444,6 +444,7 @@ const rajaa = (v, a, b) => Math.max(a, Math.min(b, v));
 const mx = (lon, z) => (lon + 180) / 360 * 256 * 2 ** z, my = (lat, z) => (1 - Math.asinh(Math.tan(lat * RAD)) / Math.PI) / 2 * 256 * 2 ** z;
 const lonX = (x, z) => x / (256 * 2 ** z) * 360 - 180, latY = (y, z) => Math.atan(Math.sinh(Math.PI * (1 - 2 * y / (256 * 2 ** z)))) / RAD;
 let jalki = null, lk = null, kulku = null, kLive = null, kYksi = null, dv = null;
+const ALKU_Z = 15;     // käynnistyksen zoom, kun sijainti tiedetään (käyttäjän toive 2026-11-26: entinen 12 + kolme lähennystä)
 const lv = { lat: 59.95, lon: 25.0, z: 8, seuraa: true, alussa: true };     // päänäkymän kartan tila säilyy välilehteä vaihdettaessa
 const KESKITA = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg>';
 function karttaHtml(id, paa) {
@@ -1027,7 +1028,7 @@ function liveKartta() {
   if (!f || !paalla) {            // ei sijaintia juuri nyt: viimeisin tunnettu paikka, muuten Suomenlahti
     if (lk) return; lk = { tyhja: true };
     const s = T.sij;
-    if (s && lv.alussa) { lv.z = 12; lv.alussa = false; }
+    if (s && lv.alussa) { lv.z = ALKU_Z; lv.alussa = false; }
     if (s && lv.seuraa) { lv.lat = s[0]; lv.lon = s[1]; }
     kLive.pts = []; kLive.vene = s ? { lat: s[0], lon: s[1], himmea: true, suunta: kulku } : null;
     kLive.piirra(); seuraaMerkki(); return;
@@ -1037,7 +1038,7 @@ function liveKartta() {
   if (f.cog != null && !isNaN(f.cog) && f.cog >= 0 && f.sog > 0.5) kulku = f.cog;
   else if (ed) kulku = (Math.atan2(Math.sin((f.lon - ed.lon) * RAD) * Math.cos(f.lat * RAD), Math.cos(ed.lat * RAD) * Math.sin(f.lat * RAD) - Math.sin(ed.lat * RAD) * Math.cos(f.lat * RAD) * Math.cos((f.lon - ed.lon) * RAD)) / RAD + 360) % 360;
   lk = { aika: Date.now(), lat: f.lat, lon: f.lon }; T.sij = [f.lat, f.lon];
-  if (lv.alussa) { lv.z = 12; lv.alussa = false; }
+  if (lv.alussa) { lv.z = ALKU_Z; lv.alussa = false; }
   kLive.pts = tal.m ? tal.m.pisteet.concat([[f.t, f.lat, f.lon, f.sog]]) : [];
   // Pehmeä liike: vene ja kartta liukuvat edellisestä paikasta uuteen paikannusten välisen ajan kuluessa (eivät hyppää).
   const b0 = kLive.vene;
