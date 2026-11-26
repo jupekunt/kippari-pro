@@ -252,8 +252,9 @@ function paivitaLive() {
     $('#kIlmans').textContent = s != null ? ilmansuunta(s) : 'suunta';
     const rj = $('#kRaja'), on = T.as.rajoitus && paalla && raj.nyt.length > 0; rj.hidden = !on; $('#kNopeus').classList.toggle('yli', !!(on && raj.yli));
     if (on) { rj.classList.toggle('yli', raj.yli); $('#kRajaLuku').textContent = raj.raja != null ? raj.raja : '!'; $('#kRajaS').textContent = raj.raja != null ? 'km/h' + (kmh() ? '' : ' = ' + n(raj.raja / 1.852) + ' kn') : raj.nyt[0].t.split(',')[0]; }
+    // tilatekstissä sitovat välilyönnit: 3D:ssä kapea merkki rivittyy vain pisteiden kohdalta
     const t = $('#kTila'); t.className = 'ktila' + (matkalla ? ' rec' : paalla ? ' odota' : '');
-    t.textContent = matkalla ? 'Tallennetaan · ' + n(m.matka / MPK, 2) + ' mpk · ' + kesto(((f ? f.t : Date.now()) - m.alku) / 1000) : paalla ? 'Odottaa lähtöä' : (gps.virhe ? 'Sijaintia ei saada' : 'Seuranta pois päältä');
+    t.textContent = matkalla ? 'Tallennetaan · ' + n(m.matka / MPK, 2) + ' mpk · ' + kesto(((f ? f.t : Date.now()) - m.alku) / 1000).replace(/ /g, ' ') : paalla ? 'Odottaa lähtöä' : (gps.virhe ? 'Sijaintia ei saada' : 'Seuranta pois päältä');
   }
   if (!$('#lTila')) return;
   $('#lPallo').className = 'pallo' + (matkalla ? ' rec' : paalla ? ' odota' : '');
@@ -1003,6 +1004,11 @@ function karttaUudelleen() {
 }
 // Päänäkymän kartta: aina näkyvissä, oma vene ja kuljettu matka punaisena viivana.
 // Veneen sijainti päivittyy korkeintaan 2 s välein ja vain kun on liikuttu 10 m.
+function sovitaTekija() {
+  const d = $('.ktekija'); if (!d || !d.isConnected) return;
+  d.style.fontSize = ''; let f = parseFloat(getComputedStyle(d).fontSize) || 10.5;
+  while (d.scrollWidth > d.clientWidth + 1 && f > 7) { f -= 0.5; d.style.fontSize = f + 'px'; }
+}
 function liveKartta() {
   const cv = $('#lKartta'); if (!cv) return;
   if (!kLive || kLive.cv !== cv) { kLive = new Kartta(cv, lv); kLive.onMuutos = seuraaMerkki; lk = null; }
@@ -1010,6 +1016,10 @@ function liveKartta() {
   for (const rp of document.querySelectorAll('.kokok > .kreitti')) if (!rp._ro && window.ResizeObserver) { rp._ro = new ResizeObserver(() => { if (rp.isConnected && rp.offsetHeight) rp.parentElement.style.setProperty('--rk', rp.offsetHeight + 'px'); }); rp._ro.observe(rp); }
   // Sama kartan lähdemerkinnälle ruudun alareunassa (--tk): kapealla ruudulla se rivittyy, ja palkit nousevat sen yläpuolelle
   { const te = $('#kTekija'); if (te && !te._ro && window.ResizeObserver) { te._ro = new ResizeObserver(() => { const k = $('.kokok'); if (te.isConnected && te.offsetHeight && k) k.style.setProperty('--tk', te.offsetHeight + 'px'); }); te._ro.observe(te); } }
+  // Lähdemerkintä pidetään yhdellä rivillä: kapealla ruudulla fonttia pienennetään, kunnes teksti mahtuu (alaraja 7 px)
+  { const d = $('.ktekija'), k = $('.kokok'); if (d && k && !d._sov && window.ResizeObserver) { d._sov = true; new ResizeObserver(sovitaTekija).observe(k); new MutationObserver(sovitaTekija).observe(d, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['hidden'] }); sovitaTekija(); } }
+  // Tilamerkin korkeus (--sk): 3D:ssä se rivittyy vasempaan puoliskoon veneen viereen, ja sadetutkan nappi nousee sen yläpuolelle
+  { const st = $('#kTila'); if (st && !st._ro && window.ResizeObserver) { st._ro = new ResizeObserver(() => { if (st.isConnected && st.offsetHeight) st.parentElement.style.setProperty('--sk', st.offsetHeight + 'px'); }); st._ro.observe(st); } }
   kLive.reitti = reitti && !omaR ? reitti.r.pisteet : null; kLive.lisat = piirraLisat; kLive.suuntaviiva = T.as.suuntaviiva; kLive.reittiKohta = !omaR && seurPaalla() && seur.aktiivinen ? seur.k : null; kallistusAseta(); if (!liike.a) kLive.kierto = kiertoNyt();      // omaa reittiä muokatessa näytetään vain muokattava reitti
   const f = gps.viime, paalla = watchId != null || tal.tila === 'matka';
   if (!f || !paalla) {            // ei sijaintia juuri nyt: viimeisin tunnettu paikka, muuten Suomenlahti
