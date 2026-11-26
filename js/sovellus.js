@@ -356,7 +356,9 @@ function nLisaa() {
     '<div class="kortti"><h2>Kartat ja väylätiedot ilman verkkoa</h2><div class="pieni">Alla olevat napit lataavat laitteelle valitun merialueen merikartan sekä väylät, merimerkit ja nopeusrajoitusalueet. Alueet ladataan erikseen. Reitti kulkee alueelta toiselle, kun vierekkäiset alueet on ladattu (Suomenlahti–Saaristomeri–Selkämeri). Merikartan katsotut alueet tallentuvat laitteelle myös itsestään; kartalla näkyvän alueen saat talteen kartan tasonapista (alin pyöreä nappi).<span id="karttaTila"></span></div><div class="napit">' + alueNapit() + '<button class="nappi vaara" data-a="tyhjennaKartat">Poista tallennetut kartat</button></div></div>' +
     '<div class="kortti"><h2>Norjan rannikko</h2><div class="pieni">Norjan merikartta (Kartverket) näkyy automaattisesti, kun kartta on Norjan vesillä, ja sen saa myös valittua karttapohjaksi. Alla olevat napit lataavat alueen kartan laitteelle, jolloin se näkyy ilman verkkoa. Norjasta on vain kartta: väylätiedot, nopeusrajoitukset ja syvyyskäyrät eivät kata Norjaa.</div><div class="pieni">Norjan merikartalla satamat ja väylät ovat päällä automaattisesti. Väylät (Kystverketin pää- ja sivuväylät, noin 1 Mt koko maasta) haetaan itsestään, kun Norjan kartta avataan verkossa ensimmäisen kerran; alla olevalla napilla ne voi päivittää. Väylät piirtyvät kartalle violetteina viivoina, ja reittisuunnittelu osaa kulkea niitä pitkin. Väylissä ei ole kulkusyvyyttä eikä merimerkkejä, joten veneen syväystä ei huomioida Norjassa.</div><div class="napit"><button class="nappi paa" data-a="lataaNorjaVaylat">Lataa Norjan väylät</button>' + NORJA.map(a => '<button class="nappi" data-a="lataaNorja" data-id="' + a.id + '">' + a.nimi + '</button>').join('') + '</div></div>' +
     '<div class="kortti"><h2>Kalapaikat (' + T.kalapaikat.length + ')</h2>' + (T.kalapaikat.length ? '<div class="plista">' + T.kalapaikat.map(k => '<div class="rivi" data-a="kalapaikkaAvaa" data-id="' + k.id + '"><div class="v"><b>' + e(k.nimi) + '</b><span class="pieni">' + (k.lajit ? e(k.lajit) + ' · ' : '') + koord(k.lat, k.lon) + '</span></div><span class="pieni">Avaa</span></div>').join('') + '</div>'
-      : '<div class="pieni">Ei vielä kalapaikkoja. Lisää paikka kartan kalanapista: omaan sijaintiin tai napauttamalla karttaa. Paikat näkyvät kartalla kalan kuvana, ja ne tallentuvat vain tälle laitteelle ja varmuuskopioon.</div>') + '</div>' +
+      : '<div class="pieni">Ei vielä kalapaikkoja. Lisää paikka kartan kalanapista: omaan sijaintiin tai napauttamalla karttaa. Paikat näkyvät kartalla kalan kuvana, ja ne tallentuvat vain tälle laitteelle ja varmuuskopioon.</div>') +
+      '<div class="napit"><button class="nappi paa" data-a="kalaTuo">Lisää jaettu kalapaikka</button>' + (T.kalapaikat.length ? '<button class="nappi" data-a="kalaJaaUseita">Jaa kalapaikkoja</button>' : '') + '</div>' +
+      '<div class="pieni">Jaa yksittäinen paikka sen omasta ikkunasta (Jaa kaverille). Kaverin lähettämän paikan saat talteen liittämällä viestin kohtaan Lisää jaettu kalapaikka.</div></div>' +
     '<div class="kortti"><h2>Syvyyskäyrät</h2><div class="pieni">Merikartan syvyyskäyrät (3, 6, 10, 20 metriä ja muut kartoitetut syvyydet) omana karttatasonaan, josta matalikot, penkat ja syvänteiden reunat erottuvat selvästi. Käyrät ladataan alueittain laitteelle, minkä jälkeen ne näkyvät ilman verkkoa. Näkyviin ne kytketään kartan tasonapista kohdasta Syvyyskäyrät.</div>' +
     ALUEET.map(a => '<div class="rivi" data-a="syvyysLataa" data-id="' + a.id + '"><div class="v"><b>' + a.nimi + '</b><span class="pieni" id="syvTila-' + a.id + '">Ei ladattu</span></div><span class="pieni">Lataa</span></div>').join('') +
     '<div class="napit"><button class="nappi vaara pien" data-a="syvyysPoista">Poista ladatut syvyyskäyrät</button></div>' +
@@ -2312,7 +2314,7 @@ function kalapaikkaIkkuna(k) {
     '<label>Kalalajit<input id="kpLajit" autocomplete="off" placeholder="esim. ahven, kuha" value="' + e(on ? k.lajit : '') + '"></label>' +
     '<label>Tarkempi kuvaus<textarea id="kpHuom" rows="6" placeholder="Syvyys, pohjan laatu, vieheet, vuodenaika ja kellonaika, ankkurointi, saaliit…">' + e(on ? k.huom : '') + '</textarea></label>' +
     (on ? '<div class="pieni">' + koord(k.lat, k.lon) + ' · lisätty ' + pvm(k.luotu) + (s ? ' · ' + n(etaisyys(s[0], s[1], k.lat, k.lon) / MPK) + ' mpk täältä' : '') + '</div>' +
-      '<button type="button" class="nappi" id="kpReitti">Reitti tänne</button><button type="button" class="nappi" id="kpSiirra">Siirrä: valitse uusi paikka kartalta</button>' +
+      '<button type="button" class="nappi" id="kpReitti">Reitti tänne</button><button type="button" class="nappi" id="kpJaa">Jaa kaverille</button><button type="button" class="nappi" id="kpSiirra">Siirrä: valitse uusi paikka kartalta</button>' +
       '<div class="napit"><button type="button" class="nappi vaara" id="kpPoista">Poista</button><button type="button" class="nappi" id="kpSulje">Sulje</button><button type="button" class="nappi paa" id="kpTallenna">Tallenna</button></div>'
       : '<div class="pieni">' + (s ? 'Oma sijainti: ' + koord(s[0], s[1]) + (gps.viime && watchId != null ? ' (±' + Math.round(gps.viime.acc || 0) + ' m)' : ' (viimeisin tunnettu)') : 'Omaa sijaintia ei ole – valitse paikka kartalta tai käynnistä GPS.') + '</div>' +
       '<button type="button" class="nappi paa" id="kpTassa"' + (s ? '' : ' disabled') + '>Tallenna omaan sijaintiin</button><button type="button" class="nappi" id="kpKartta">Valitse paikka kartalta</button>' +
@@ -2327,6 +2329,7 @@ function kalapaikkaIkkuna(k) {
   } else {
     d.querySelector('#kpTallenna').onclick = async () => { Object.assign(k, lue()); d.close(); await talletaT(); ilmoita('Kalapaikka tallennettu.'); piirra(); };
     d.querySelector('#kpPoista').onclick = async () => { if (!confirm('Poistetaanko kalapaikka ' + k.nimi + ' pysyvästi?')) return; T.kalapaikat = T.kalapaikat.filter(x => x !== k); d.close(); await talletaT(); ilmoita('Kalapaikka poistettu.'); piirra(); };
+    d.querySelector('#kpJaa').onclick = async () => { Object.assign(k, lue()); await talletaT(); kalaJaaIkkuna([k]); };
     d.querySelector('#kpSiirra').onclick = () => { Object.assign(k, lue()); kartalta('Napauta kalapaikan uutta kohtaa kartalla.', async (la, lo) => { k.lat = la; k.lon = lo; await talletaT(); ilmoita('Kalapaikka siirretty.'); }); };
     d.querySelector('#kpReitti').onclick = async () => {
       Object.assign(k, lue()); await talletaT(); d.close();
@@ -2337,9 +2340,73 @@ function kalapaikkaIkkuna(k) {
   }
   d.showModal();
 }
+// Kalapaikkojen jako: tiedot kirjoitetaan viestiin suoraan (kalaViesti / kalaLue ydin.js:ssä), ei linkkiä eikä palvelinta.
+// Lähetys puhelimen jakovalikolla (navigator.share) tai kopioimalla; vastaanotto liittämällä viesti Lisää-sivulla.
+function kalaJaaIkkuna(lista) {
+  const d = $('#dlg'), teksti = kalaViesti(lista, koord), voiJakaa = !!navigator.share;
+  d.innerHTML = '<form method="dialog"><h3>Jaa ' + (lista.length === 1 ? 'kalapaikka ' + e(lista[0].nimi) : lista.length + ' kalapaikkaa') + '</h3>' +
+    '<div class="pieni">Viestissä on paikan nimi, kalalajit, sijainti ja kuvaus sekä KIPPARI-KALA-rivi, josta kaverin Kippari Pro lukee paikan. Kaveri kopioi koko viestin ja liittää sen kohtaan Lisää → Kalapaikat → Lisää jaettu kalapaikka. Ilman Kippari Prota paikan löytää viestin koordinaateista.</div>' +
+    '<textarea id="kjTeksti" rows="9" readonly>' + e(teksti) + '</textarea>' +
+    '<div class="napit"><button type="button" class="nappi" id="kjSulje">Sulje</button><button type="button" class="nappi' + (voiJakaa ? '' : ' paa') + '" id="kjKopioi">Kopioi</button>' + (voiJakaa ? '<button type="button" class="nappi paa" id="kjJaa">Jaa…</button>' : '') + '</div></form>';
+  d.querySelector('#kjSulje').onclick = () => d.close();
+  d.querySelector('#kjKopioi').onclick = async () => {
+    try { await navigator.clipboard.writeText(teksti); } catch (err) { const t = d.querySelector('#kjTeksti'); t.focus(); t.select(); try { document.execCommand('copy'); } catch (er) { ilmoita('Kopiointi ei onnistunut – valitse teksti ja kopioi se itse.'); return; } }
+    ilmoita('Viesti kopioitu. Liitä se viestisovellukseen.');
+  };
+  if (voiJakaa) d.querySelector('#kjJaa').onclick = async () => {
+    try { await navigator.share({ text: teksti }); d.close(); } catch (err) { if (err && err.name !== 'AbortError') ilmoita('Jako ei onnistunut – käytä Kopioi-nappia.'); }
+  };
+  if (!d.open) d.showModal();
+}
+// Usean paikan jako: valitaan listasta.
+function kalaJaaUseitaIkkuna() {
+  const d = $('#dlg');
+  d.innerHTML = '<form method="dialog"><h3>Jaa kalapaikkoja</h3><div class="pieni">Valitse jaettavat paikat. Ne lähtevät samassa viestissä.</div>' +
+    '<div id="kjLista">' + T.kalapaikat.map(k => '<label class="cb"><input type="checkbox" value="' + k.id + '">' + e(k.nimi) + (k.lajit ? ' <span class="pieni">· ' + e(k.lajit) + '</span>' : '') + '</label>').join('') + '</div>' +
+    '<div class="napit"><button type="button" class="nappi" id="kjKaikki">Valitse kaikki</button><button type="button" class="nappi" id="kjSulje">Peruuta</button><button type="button" class="nappi paa" id="kjSeur">Jatka</button></div></form>';
+  const ruudut = () => [...d.querySelectorAll('#kjLista input')];
+  d.querySelector('#kjSulje').onclick = () => d.close();
+  d.querySelector('#kjKaikki').onclick = () => { const kaikki = ruudut().every(r => r.checked); ruudut().forEach(r => { r.checked = !kaikki; }); };
+  d.querySelector('#kjSeur').onclick = () => { const id = ruudut().filter(r => r.checked).map(r => r.value); if (!id.length) { ilmoita('Valitse vähintään yksi kalapaikka.'); return; } kalaJaaIkkuna(T.kalapaikat.filter(k => id.includes(k.id))); };
+  d.showModal();
+}
+// Kaverin lähettämän paikan lisäys: viesti liitetään tekstikenttään, paikat näytetään valittavina ennen tallennusta.
+// Sama paikka (alle 20 m ja sama nimi) merkitään jo olevaksi eikä sitä valita oletuksena.
+function kalaTuoIkkuna() {
+  const d = $('#dlg'), voiLukea = !!(navigator.clipboard && navigator.clipboard.readText); let loydetyt = [];
+  d.innerHTML = '<form method="dialog"><h3>Lisää jaettu kalapaikka</h3><div class="pieni">Kopioi kaverin viesti kokonaan ja liitä se alle. Kippari Pro poimii paikat KIPPARI-KALA-riveiltä; jos niitä ei ole, viestin desimaalikoordinaateista (esim. 60.12345, 24.56789).</div>' +
+    '<textarea id="ktTeksti" rows="7" placeholder="Liitä viesti tähän"></textarea>' + (voiLukea ? '<button type="button" class="nappi" id="ktLiita">Liitä leikepöydältä</button>' : '') +
+    '<div id="ktTulos" class="pieni"></div>' +
+    '<div class="napit"><button type="button" class="nappi" id="ktSulje">Peruuta</button><button type="button" class="nappi paa" id="ktLisaa" disabled>Lisää valitut</button></div></form>';
+  const ta = d.querySelector('#ktTeksti'), tulos = d.querySelector('#ktTulos'), lisaa = d.querySelector('#ktLisaa');
+  const onJo = p => T.kalapaikat.some(k => k.nimi === p.nimi && etaisyys(k.lat, k.lon, p.lat, p.lon) < 20);
+  const paivita = () => {
+    loydetyt = kalaLue(ta.value);
+    if (!ta.value.trim()) { tulos.innerHTML = ''; lisaa.disabled = true; return; }
+    if (!loydetyt.length) { tulos.innerHTML = 'Viestistä ei löytynyt kalapaikkaa. Tarkista, että kopioit koko viestin.'; lisaa.disabled = true; return; }
+    tulos.innerHTML = '<b>Löytyi ' + loydetyt.length + ' kalapaikka' + (loydetyt.length > 1 ? 'a' : '') + ':</b>' + loydetyt.map((p, i) => { const jo = onJo(p); return '<label class="cb"><input type="checkbox" data-i="' + i + '"' + (jo ? '' : ' checked') + '>' + e(p.nimi) + ' <span class="pieni">· ' + (p.lajit ? e(p.lajit) + ' · ' : '') + koord(p.lat, p.lon) + (jo ? ' · on jo tallennettu' : '') + '</span></label>'; }).join('');
+    lisaa.disabled = false;
+  };
+  ta.addEventListener('input', paivita);
+  d.querySelector('#ktSulje').onclick = () => d.close();
+  if (voiLukea) d.querySelector('#ktLiita').onclick = async () => { try { ta.value = await navigator.clipboard.readText(); paivita(); } catch (err) { ilmoita('Leikepöytää ei voitu lukea – liitä viesti tekstikenttään itse.'); } };
+  lisaa.onclick = async () => {
+    const valitut = [...tulos.querySelectorAll('input:checked')].map(r => loydetyt[+r.dataset.i]);
+    if (!valitut.length) { ilmoita('Valitse vähintään yksi kalapaikka.'); return; }
+    for (const p of valitut) T.kalapaikat.push(Object.assign({ id: uusiId(), luotu: Date.now(), jaettu: true }, p));
+    await talletaT(); d.close();
+    ilmoita(valitut.length === 1 ? 'Kalapaikka lisätty: ' + valitut[0].nimi : valitut.length + ' kalapaikkaa lisätty.');
+    // näytetään lisätty paikka kartalla
+    const p = valitut[0]; Object.assign(lv, { lat: p.lat, lon: p.lon, seuraa: false, z: Math.max(lv.z || 0, 12) }); if (!T.as.kalapaikat) { T.as.kalapaikat = true; await talletaT(); }
+    nakyma = 'kartta'; piirra();
+  };
+  d.showModal(); ta.focus();
+}
 Object.assign(A, {
   kalapaikka() { kalapaikkaIkkuna(null); },
-  kalapaikkaAvaa(id) { const k = T.kalapaikat.find(x => x.id === id); if (k) kalapaikkaIkkuna(k); }
+  kalapaikkaAvaa(id) { const k = T.kalapaikat.find(x => x.id === id); if (k) kalapaikkaIkkuna(k); },
+  kalaTuo() { kalaTuoIkkuna(); },
+  kalaJaaUseita() { if (T.kalapaikat.length) kalaJaaUseitaIkkuna(); }
 });
 
 // ---------- syvyyskäyrät (Traficomin merikartta-aineisto) ----------

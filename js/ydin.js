@@ -416,4 +416,42 @@ function farledMuunna(xml) {
 // Onko kohta jonkin alueen rajojen sisällä (alueet = [{b: {lo0, lo1, la0, la1}}])? Käytetään Norjan merikartan automaattiseen valintaan.
 function norjassa(lat, lon, alueet) { for (const a of alueet || []) if (lon >= a.b.lo0 && lon < a.b.lo1 && lat >= a.b.la0 && lat < a.b.la1) return true; return false; }
 
-if (typeof module !== 'undefined') module.exports = { farledMuunna, norjassa,tutkaLoppu, tutkaRajaus,yhdistaVaylat, suuntima, kulmaEro, reittiMitat, reittiKohta, yksinkertaista, rajoituksetMuunna, pisteAlueessa, rajoitusKohdassa, satamatMuunna, ylosVektori, kallistus, MERKKILAJIT, rakennaVerkko, lahinVayla, reitita, merkitReitilla, MPK, SOLMU, etaisyys, Tallennin, lahinPaikka, kulutus, huoltoTila, ilmansuunta, saaYhteenveto, gpx };
+// ---------- kalapaikkojen jako viestinä ----------
+// Tiedot kirjoitetaan viestiin suoraan (ei linkkiä): ensin luettava teksti, sitten jokaisesta paikasta konerivi
+// "KIPPARI-KALA <lat> <lon> <tiedot>", jossa tiedot = JSON {n: nimi, l: lajit, h: kuvaus} UTF-8:na base64url-muodossa (ei välilyöntejä eikä +/=).
+// koordTeksti(lat, lon) = asteet ja minuutit luettavaan riviin (valinnainen).
+function b64u(teksti) { return btoa(unescape(encodeURIComponent(teksti))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); }
+function b64uPura(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); while (s.length % 4) s += '='; return decodeURIComponent(escape(atob(s))); }
+function kalaViesti(paikat, koordTeksti) {
+  const osat = (paikat || []).map(k => {
+    const r = ['Kalapaikka: ' + k.nimi];
+    if (k.lajit) r.push('Kalalajit: ' + k.lajit);
+    r.push('Sijainti: ' + (koordTeksti ? koordTeksti(k.lat, k.lon) + ' = ' : '') + (+k.lat).toFixed(5) + ', ' + (+k.lon).toFixed(5));
+    if (k.huom) r.push('Kuvaus: ' + k.huom);
+    r.push('KIPPARI-KALA ' + (+k.lat).toFixed(6) + ' ' + (+k.lon).toFixed(6) + ' ' + b64u(JSON.stringify({ n: k.nimi || '', l: k.lajit || '', h: k.huom || '' })));
+    return r.join('\n');
+  });
+  return osat.join('\n\n') + '\n\n(Kippari Pro: kopioi koko viesti ja liitä se kohtaan Lisää → Kalapaikat → Lisää jaettu kalapaikka.)';
+}
+// Lukee viestistä kalapaikat: [{nimi, lajit, huom, lat, lon}]. Ensisijaisesti konerivit; jos niitä ei ole, desimaalikoordinaatit
+// tekstistä (esim. "60.12340, 24.56780" tai karttasovelluksen linkki), jolloin nimi, lajit ja kuvaus luetaan riveiltä "Kalapaikka:", "Kalalajit:", "Kuvaus:".
+function kalaLue(teksti) {
+  const t = String(teksti || ''), tulos = [];
+  const ok = (la, lo) => isFinite(la) && isFinite(lo) && Math.abs(la) <= 90 && Math.abs(lo) <= 180 && !(la === 0 && lo === 0);
+  const s = (v, max) => typeof v === 'string' ? v.trim().slice(0, max) : '';
+  const re = /KIPPARI-KALA\s+(-?\d{1,2}\.\d+)\s+(-?\d{1,3}\.\d+)(?:[ \t]+([A-Za-z0-9_-]+))?/g; let m;
+  while ((m = re.exec(t))) {
+    const la = +m[1], lo = +m[2]; if (!ok(la, lo)) continue;
+    let o = {}; try { o = JSON.parse(b64uPura(m[3] || '')) || {}; } catch (e) { o = {}; }
+    tulos.push({ nimi: s(o.n, 100) || 'Jaettu kalapaikka', lajit: s(o.l, 200), huom: s(o.h, 4000), lat: +la.toFixed(6), lon: +lo.toFixed(6) });
+  }
+  if (tulos.length) return tulos;
+  const re2 = /(-?\d{1,2}\.\d{3,})\s*[,;/ ]\s*(-?\d{1,3}\.\d{3,})/g, parit = [];
+  while ((m = re2.exec(t))) { const la = +m[1], lo = +m[2]; if (ok(la, lo) && !parit.some(p => Math.abs(p[0] - la) < 1e-6 && Math.abs(p[1] - lo) < 1e-6)) parit.push([la, lo]); }
+  const rivi = nimi => { const r = new RegExp('^\\s*' + nimi + '\\s*:\\s*(.+)$', 'mi').exec(t); return r ? r[1].trim() : ''; };
+  const kuvaus = (() => { const r = /^\s*Kuvaus\s*:\s*([\s\S]*?)(?=^\s*(?:Kalapaikka|Kalalajit|Sijainti)\s*:|\n\s*\n|$(?![\s\S]))/mi.exec(t); return r ? r[1].trim() : ''; })();
+  parit.forEach((p, i) => tulos.push({ nimi: (parit.length === 1 && s(rivi('Kalapaikka'), 100)) || 'Jaettu kalapaikka' + (parit.length > 1 ? ' ' + (i + 1) : ''), lajit: parit.length === 1 ? s(rivi('Kalalajit'), 200) : '', huom: parit.length === 1 ? s(kuvaus, 4000) : '', lat: +p[0].toFixed(6), lon: +p[1].toFixed(6) }));
+  return tulos;
+}
+
+if (typeof module !== 'undefined') module.exports = { kalaViesti, kalaLue, farledMuunna, norjassa,tutkaLoppu, tutkaRajaus,yhdistaVaylat, suuntima, kulmaEro, reittiMitat, reittiKohta, yksinkertaista, rajoituksetMuunna, pisteAlueessa, rajoitusKohdassa, satamatMuunna, ylosVektori, kallistus, MERKKILAJIT, rakennaVerkko, lahinVayla, reitita, merkitReitilla, MPK, SOLMU, etaisyys, Tallennin, lahinPaikka, kulutus, huoltoTila, ilmansuunta, saaYhteenveto, gpx };
