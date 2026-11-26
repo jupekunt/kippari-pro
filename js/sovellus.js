@@ -1615,7 +1615,8 @@ async function laskeReitti() {
 }
 function naytaReitti() {
   nakyma = 'kartta'; lv.seuraa = false; lv.alussa = false; seurNollaa(); if (paikkaTuore()) reittiSeuraa(gps.viime); piirra();
-  if (kLive && reitti) { kLive.sovita(reitti.r.pisteet.map(p => [0, p[0], p[1]])); kLive.piirra(); seuraaMerkki(); }
+  // Käyttäjän toive 2026-11-26: reitin valinta ei zoomaa ulos, vaan kartta pysyy oletustasolla (ALKU_Z) ja seuraa venettä, jos sijainti on päällä; muuten reitin alussa.
+  if (kLive && reitti) { const a = paikkaTuore() ? [gps.viime.lat, gps.viime.lon] : reitti.r.pisteet[0]; lv.seuraa = paikkaTuore(); lv.z = ALKU_Z; lv.lat = a[0]; lv.lon = a[1]; kLive.piirra(); seuraaMerkki(); }
 }
 const reittiAika = r => kesto(r.matka / MPK / (T.vene.nopeus || 10) * 3600);
 const reittiNimi = () => reitti.nimi || reitti.mista.nimi + ' → ' + reitti.minne.nimi;
